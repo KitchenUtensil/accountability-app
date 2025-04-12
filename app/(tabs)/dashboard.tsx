@@ -14,8 +14,11 @@ import {
   Users,
   Bell,
   Settings,
+  UserPlus,
 } from "lucide-react-native";
 import { Task, GroupMember } from "@/types/dashboard";
+import { useRouter } from "expo-router";
+import { TouchableWithoutFeedback } from "react-native-gesture-handler";
 
 // Mock data for group members and their tasks
 const groupMembers: GroupMember[] = [
@@ -24,8 +27,8 @@ const groupMembers: GroupMember[] = [
     name: "You",
     avatar: "https://placeholder.svg?height=50&width=50",
     tasks: [
-      {id: "1", title: "Morning workout", completed: false},
-      {id: "2", title: "Read for 30 minutes", completed: false},
+      { id: "1", title: "Morning workout", completed: false },
+      { id: "2", title: "Read for 30 minutes", completed: false },
     ],
     lastCheckin: "2 hours ago",
   },
@@ -34,8 +37,8 @@ const groupMembers: GroupMember[] = [
     name: "Sarah",
     avatar: "https://placeholder.svg?height=50&width=50",
     tasks: [
-      {id: "1", title: "Meditation", completed: true},
-      {id: "2", title: "Coding practice", completed: true},
+      { id: "1", title: "Meditation", completed: true },
+      { id: "2", title: "Coding practice", completed: true },
     ],
     lastCheckin: "30 minutes ago",
   },
@@ -43,7 +46,7 @@ const groupMembers: GroupMember[] = [
     id: "3",
     name: "Mike",
     avatar: "https://placeholder.svg?height=50&width=50",
-    tasks: [{id: "1", title: "Run 5k", completed: true}],
+    tasks: [{ id: "1", title: "Run 5k", completed: true }],
     lastCheckin: "1 hour ago",
   },
   {
@@ -51,8 +54,8 @@ const groupMembers: GroupMember[] = [
     name: "Jessica",
     avatar: "https://placeholder.svg?height=50&width=50",
     tasks: [
-      {id: "1", title: "Study Spanish", completed: false},
-      {id: "2", title: "Yoga session", completed: true},
+      { id: "1", title: "Study Spanish", completed: false },
+      { id: "2", title: "Yoga session", completed: true },
     ],
     lastCheckin: "3 hours ago",
   },
@@ -60,6 +63,8 @@ const groupMembers: GroupMember[] = [
 
 const DashboardScreen = () => {
   const userInGroup = false; //replace this later with real logic
+
+  const nav = useRouter();
 
   const [showJoinCreateModal, setShowJoinCreateModal] = useState(!userInGroup);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
@@ -69,11 +74,13 @@ const DashboardScreen = () => {
   const handleCreateGroup = () => {
     console.log("User creates a group");
     setShowJoinCreateModal(false);
+    nav.push("/create-group");
   };
 
   const handleJoinGroup = () => {
     console.log("User joins a group");
     setShowJoinCreateModal(false);
+    nav.push("/join-group");
   };
 
   const handleTaskPress = (task: Task) => {
@@ -83,7 +90,7 @@ const DashboardScreen = () => {
 
   const handleCompleteTask = () => {
     if (!selectedTask) return;
-    
+
     setMyTasks(
       myTasks.map((task) =>
         task.id === selectedTask.id ? { ...task, completed: true } : task,
@@ -152,27 +159,34 @@ const DashboardScreen = () => {
           <TouchableOpacity style={styles.iconButton}>
             <Settings size={24} color="#333" />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => nav.push("/invite-members")}
+          >
+            <UserPlus size={24} color="#333" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.groupActions}>
-        <TouchableOpacity
-          style={styles.groupActionButton}
-          onPress={() => console.log("create group")}
-        >
-          <PlusCircle size={18} color="#5E72E4" />
-          <Text style={styles.groupActionText}>Create Group</Text>
-        </TouchableOpacity>
+      {!userInGroup && (
+        <View style={styles.groupActions}>
+          <TouchableOpacity
+            style={styles.groupActionButton}
+            onPress={() => console.log("create group")}
+          >
+            <PlusCircle size={18} color="#5E72E4" />
+            <Text style={styles.groupActionText}>Create Group</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.groupActionButton}
-          onPress={() => console.log("join group")}
-        >
-          <Users size={18} color="#5E72E4" />
-          <Text style={styles.groupActionText}>Join Group</Text>
-        </TouchableOpacity>
-      </View>
-
+          <TouchableOpacity
+            style={styles.groupActionButton}
+            onPress={() => console.log("join group")}
+          >
+            <Users size={18} color="#5E72E4" />
+            <Text style={styles.groupActionText}>Join Group</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <FlatList
         data={groupMembers}
         renderItem={renderMemberCard}
