@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { SetStateAction, useState } from "react";
 import {
   View,
   Text,
@@ -15,16 +15,17 @@ import {
   Bell,
   Settings,
 } from "lucide-react-native";
+import { Task, GroupMember } from "@/types/dashboard";
 
 // Mock data for group members and their tasks
-const groupMembers = [
+const groupMembers: GroupMember[] = [
   {
     id: "1",
     name: "You",
     avatar: "https://placeholder.svg?height=50&width=50",
     tasks: [
-      { id: "1", title: "Morning workout", completed: false },
-      { id: "2", title: "Read for 30 minutes", completed: false },
+      {id: "1", title: "Morning workout", completed: false},
+      {id: "2", title: "Read for 30 minutes", completed: false},
     ],
     lastCheckin: "2 hours ago",
   },
@@ -33,8 +34,8 @@ const groupMembers = [
     name: "Sarah",
     avatar: "https://placeholder.svg?height=50&width=50",
     tasks: [
-      { id: "1", title: "Meditation", completed: true },
-      { id: "2", title: "Coding practice", completed: true },
+      {id: "1", title: "Meditation", completed: true},
+      {id: "2", title: "Coding practice", completed: true},
     ],
     lastCheckin: "30 minutes ago",
   },
@@ -42,7 +43,7 @@ const groupMembers = [
     id: "3",
     name: "Mike",
     avatar: "https://placeholder.svg?height=50&width=50",
-    tasks: [{ id: "1", title: "Run 5k", completed: true }],
+    tasks: [{id: "1", title: "Run 5k", completed: true}],
     lastCheckin: "1 hour ago",
   },
   {
@@ -50,8 +51,8 @@ const groupMembers = [
     name: "Jessica",
     avatar: "https://placeholder.svg?height=50&width=50",
     tasks: [
-      { id: "1", title: "Study Spanish", completed: false },
-      { id: "2", title: "Yoga session", completed: true },
+      {id: "1", title: "Study Spanish", completed: false},
+      {id: "2", title: "Yoga session", completed: true},
     ],
     lastCheckin: "3 hours ago",
   },
@@ -62,8 +63,8 @@ const DashboardScreen = () => {
 
   const [showJoinCreateModal, setShowJoinCreateModal] = useState(!userInGroup);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [myTasks, setMyTasks] = useState(groupMembers[0].tasks);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [myTasks, setMyTasks] = useState<Task[]>(groupMembers[0].tasks);
 
   const handleCreateGroup = () => {
     console.log("User creates a group");
@@ -75,12 +76,14 @@ const DashboardScreen = () => {
     setShowJoinCreateModal(false);
   };
 
-  const handleTaskPress = (task) => {
+  const handleTaskPress = (task: Task) => {
     setSelectedTask(task);
     setShowCheckInModal(true);
   };
 
   const handleCompleteTask = () => {
+    if (!selectedTask) return;
+    
     setMyTasks(
       myTasks.map((task) =>
         task.id === selectedTask.id ? { ...task, completed: true } : task,
@@ -89,7 +92,7 @@ const DashboardScreen = () => {
     setShowCheckInModal(false);
   };
 
-  const renderMemberCard = ({ item }) => (
+  const renderMemberCard = ({ item }: { item: GroupMember }) => (
     <View style={styles.memberCard}>
       <View style={styles.memberHeader}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -392,69 +395,6 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    minHeight: 300,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  modalTaskDetails: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  modalTaskTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  modalTaskDescription: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  modalButton: {
-    flex: 1,
-    borderRadius: 8,
-    padding: 16,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
-    marginRight: 8,
-  },
-  completeButton: {
-    backgroundColor: "#5E72E4",
-    marginLeft: 8,
-  },
-  cancelButtonText: {
-    color: "#333",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  completeButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -489,11 +429,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 8,
   },
+  cancelButton: {
+    backgroundColor: "#f5f5f5",
+    marginRight: 8,
+  },
+  completeButton: {
+    backgroundColor: "#5E72E4",
+    marginLeft: 8,
+  },
   createButton: {
     backgroundColor: "#5E72E4",
   },
   joinButton: {
     backgroundColor: "#4CAF50",
+  },
+  cancelButtonText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  completeButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   createButtonText: {
     color: "#fff",
@@ -504,6 +462,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalTaskDetails: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  modalTaskTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
   },
 });
 
