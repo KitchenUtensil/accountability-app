@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [username, setUserName] = useState("");
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState(false);
   const router = useRouter();
 
   // Send verification code to phone number
@@ -27,15 +28,30 @@ export default function LoginScreen() {
       Alert.alert("Error", "Please enter a phone number");
       return;
     }
+
     try {
       setLoading(true);
       const formattedPhone = phoneNumber.startsWith("+")
         ? phoneNumber
         : `+${phoneNumber}`;
-      const { error } = await supabase.auth.signInWithOtp({
+      // First check if a user exists with this phone number
+      const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
       });
-      if (error) throw error;
+      if (authError) throw authError;
+
+      // Check if there's already a profile with this phone in auth.users
+      const { count, error: countError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .filter('user_id', 'in', `(select id from auth.users where phone = '${formattedPhone}')`);
+
+      if (countError) {
+        console.error("Error checking profile:", countError);
+      } else {
+        // If profile exists, mark as existing user (no need to create profile later)
+        setIsExistingUser(count !== null && count > 0);
+      }
       setVerificationSent(true);
       Alert.alert("Success", "Verification code sent to your phone");
     } catch (error: any) {
@@ -51,35 +67,43 @@ export default function LoginScreen() {
       Alert.alert("Error", "Please enter phone number and verification code");
       return;
     }
-    if (!username) {
+    if (!isExistingUser && !username) {
       Alert.alert("Error", "Please enter a username");
       return;
     }
+
     try {
       setLoading(true);
-      const formattedPhone = phoneNumber.startsWith("+")
-        ? phoneNumber
-        : `+${phoneNumber}`;
+      
+      // Format phone number to include + if not already
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+      
       const { data, error } = await supabase.auth.verifyOtp({
         phone: formattedPhone,
         token: smsCode,
-        type: "sms",
+        type: 'sms',
       });
-      if (error) throw error;
 
+      if (error) throw error;
+      
+      // Successfully logged in
       const user = data.user;
-      if (user) {
+      
+      // Only create/update profile if this is a new user
+      if (user && !isExistingUser) {
+        // Insert or update the user's profile in the profiles table
         const { error: profileError } = await supabase
-          .from("profiles")
+          .from('profiles')
           .upsert({
             user_id: user.id,
             display_name: username,
           });
-        if (profileError) throw profileError;
 
-        // router.push("/");
-        console.log("User logged in:", username);
+        if (profileError) throw profileError;
       }
+
+      // Navigate to dashboard
+      router.push('/dashboard');
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to login");
     } finally {
