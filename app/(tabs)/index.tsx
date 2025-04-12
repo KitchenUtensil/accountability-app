@@ -2,7 +2,10 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
+import { useRouter } from "expo-router";
+
 export default function WelcomeScreen() {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -14,7 +17,7 @@ export default function WelcomeScreen() {
       <View style={styles.loginContainer}>
         <TouchableOpacity
           style={styles.loginButton}
-          onPress={() => console.log("log in")}
+          onPress={() => router.push("/login-screen")}
         >
           <Text style={styles.buttonText}>Login using SMS</Text>s
         </TouchableOpacity>
