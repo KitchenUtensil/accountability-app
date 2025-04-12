@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function TabLayout() {
@@ -10,6 +10,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         animation: "none",
+        gestureEnabled: false,
       }}
     >
       <Stack.Screen name="index"></Stack.Screen>
@@ -17,6 +18,7 @@ export default function TabLayout() {
       <Stack.Screen name="create-group"></Stack.Screen>
       <Stack.Screen name="join-group"></Stack.Screen>
       <Stack.Screen name="dashboard"></Stack.Screen>
+      <Stack.Screen name="invite-members"></Stack.Screen>
     </Stack>
   );
 }

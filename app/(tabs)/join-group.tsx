@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-
+import { ArrowLeft } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 export default function JoinGroupScreen() {
@@ -31,6 +31,12 @@ export default function JoinGroupScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.push("/dashboard")}
+        >
+          <ArrowLeft size={24} color="#333" />
+        </TouchableOpacity>
         <Text style={styles.title}>Join a Group</Text>
         <Text style={styles.subtitle}>
           Enter an invite code to join an existing accountability group
@@ -155,5 +161,8 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "600",
+  },
+  backButton: {
+    padding: 4,
   },
 });
