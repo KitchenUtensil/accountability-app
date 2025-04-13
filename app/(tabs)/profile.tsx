@@ -14,7 +14,6 @@ import {
 import { useRouter } from "expo-router"
 import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native"
 import { useState, useEffect } from "react"
-// First, import the supabase client at the top of the file with the other imports
 import { supabase } from "@/lib/supabase"
 
 export default function Profile() {
@@ -23,10 +22,11 @@ export default function Profile() {
   const [newUsername, setNewUsername] = useState("")
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [savingUsername, setSavingUsername] = useState(false)
 
   const router = useRouter()
 
-  // Add useEffect to fetch the user's profile when component mounts
+  // Fetch user profile when component mounts
   useEffect(() => {
     fetchUserProfile()
   }, [])
@@ -59,7 +59,8 @@ export default function Profile() {
         .eq("user_id", session.user.id)
         .single()
 
-      if (profileError) {
+      if (profileError && profileError.code !== "PGRST116") {
+        // PGRST116 is the "not found" error code
         throw profileError
       }
 
@@ -76,7 +77,7 @@ export default function Profile() {
     }
   }
 
-  // Update handleSaveUsername to save changes to Supabase
+  // Function to save username changes to Supabase
   const handleSaveUsername = async () => {
     if (!newUsername.trim()) {
       Alert.alert("Error", "Username cannot be empty")
@@ -84,12 +85,17 @@ export default function Profile() {
     }
 
     try {
-      setLoading(true)
+      setSavingUsername(true)
 
       // Get current user session
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        throw sessionError
+      }
 
       if (!session) {
         Alert.alert("Error", "You must be logged in to update your profile")
@@ -97,13 +103,13 @@ export default function Profile() {
       }
 
       // Update the profile in Supabase
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("profiles")
         .update({ display_name: newUsername.trim() })
         .eq("user_id", session.user.id)
 
-      if (error) {
-        throw error
+      if (updateError) {
+        throw updateError
       }
 
       // Update local state
@@ -114,11 +120,11 @@ export default function Profile() {
       console.error("Error updating username:", error)
       Alert.alert("Error", "Failed to update username")
     } finally {
-      setLoading(false)
+      setSavingUsername(false)
     }
   }
 
-  // Then, update the handleLogout function to use Supabase's auth.signOut() method
+  // Function to handle logout
   const handleLogout = async () => {
     try {
       setShowLogoutConfirm(false)
@@ -287,6 +293,7 @@ export default function Profile() {
       marginLeft: 12,
     },
     loadingContainer: {
+      flex: 1,
       justifyContent: "center",
       alignItems: "center",
     },
@@ -297,8 +304,8 @@ export default function Profile() {
     },
   })
 
-  // Add a loading view
-  if (loading && !editingUsername) {
+  // Show loading indicator when initially loading the profile
+  if (loading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#5E72E4" />
@@ -326,13 +333,17 @@ export default function Profile() {
                 autoFocus
                 selectTextOnFocus
               />
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
-                <Check size={20} color="#fff" />
-              </TouchableOpacity>
+              {savingUsername ? (
+                <ActivityIndicator size="small" color="#5E72E4" style={{ marginLeft: 8 }} />
+              ) : (
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
+                  <Check size={20} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={styles.usernameContainer}>
-              <Text style={styles.username}>{username}</Text>
+              <Text style={styles.username}>{username || "Set your name"}</Text>
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
