@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [username, setUserName] = useState("");
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
   const [isExistingUser, setIsExistingUser] = useState(false);
   const router = useRouter();
 
@@ -34,24 +35,13 @@ export default function LoginScreen() {
       const formattedPhone = phoneNumber.startsWith("+")
         ? phoneNumber
         : `+${phoneNumber}`;
-      // First check if a user exists with this phone number
-      const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
+        
+      const { data, error } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
       });
-      if (authError) throw authError;
 
-      // Check if there's already a profile with this phone in auth.users
-      const { count, error: countError } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .filter('user_id', 'in', `(select id from auth.users where phone = '${formattedPhone}')`);
+      if (error) throw error;
 
-      if (countError) {
-        console.error("Error checking profile:", countError);
-      } else {
-        // If profile exists, mark as existing user (no need to create profile later)
-        setIsExistingUser(count !== null && count > 0);
-      }
       setVerificationSent(true);
       Alert.alert("Success", "Verification code sent to your phone");
     } catch (error: any) {
@@ -61,22 +51,18 @@ export default function LoginScreen() {
     }
   };
 
-  // Verify code and login
-  const handleLogin = async () => {
+  // Verify SMS code
+  const handleVerifyCode = async () => {
     if (!phoneNumber || !smsCode) {
       Alert.alert("Error", "Please enter phone number and verification code");
-      return;
-    }
-    if (!isExistingUser && !username) {
-      Alert.alert("Error", "Please enter a username");
       return;
     }
 
     try {
       setLoading(true);
-      
-      // Format phone number to include + if not already
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+      const formattedPhone = phoneNumber.startsWith("+")
+        ? phoneNumber
+        : `+${phoneNumber}`;
       
       const { data, error } = await supabase.auth.verifyOtp({
         phone: formattedPhone,
@@ -86,26 +72,69 @@ export default function LoginScreen() {
 
       if (error) throw error;
       
-      // Successfully logged in
-      const user = data.user;
-      
-      // Only create/update profile if this is a new user
-      if (user && !isExistingUser) {
-        // Insert or update the user's profile in the profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            user_id: user.id,
-            display_name: username,
-          });
-
-        if (profileError) throw profileError;
+      // Check if user is available
+      if (!data.user) {
+        throw new Error("Verification successful but no user data returned");
       }
+      
+      // Successfully verified code - now check if profile exists
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .single();
+        
+      if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error("Error checking profile:", profileError);
+        throw profileError;
+      }
+      
+      setIsExistingUser(!!profileData);
+      setVerificationComplete(true);
+      
+      // If user profile already exists, continue to dashboard
+      if (profileData) {
+        router.push('/dashboard');
+      }
+      
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to verify code");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Complete profile and login
+  const handleCompleteProfile = async () => {
+    if (!username) {
+      Alert.alert("Error", "Please enter a username");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) throw sessionError;
+      if (!data.session || !data.session.user) {
+        throw new Error("No authenticated user found");
+      }
+      
+      // Create user profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: data.session.user.id,
+          display_name: username,
+        });
+
+      if (profileError) throw profileError;
+      
       // Navigate to dashboard
       router.push('/dashboard');
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to login");
+      Alert.alert("Error", error.message || "Failed to create profile");
     } finally {
       setLoading(false);
     }
@@ -126,20 +155,39 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.formCard}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder="Enter your phone number (+1234567890)"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-              editable={!verificationSent || !loading}
-            />
-          </View>
+          {/* Step 1: Phone Input */}
+          {!verificationSent && (
+            <>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  placeholder="Enter your phone number (+1234567890)"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                  editable={!loading}
+                />
+              </View>
+              
+              <View style={styles.buttonContainer}>
+                {loading ? (
+                  <ActivityIndicator size="large" color="#5E72E4" />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.button}
+                    onPress={handleSendVerificationCode}
+                  >
+                    <Text style={styles.buttonText}>Send Verification Code</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          )}
 
-          {verificationSent && (
+          {/* Step 2: OTP Verification */}
+          {verificationSent && !verificationComplete && (
             <>
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>SMS Code</Text>
@@ -154,6 +202,30 @@ export default function LoginScreen() {
                 />
               </View>
 
+              <View style={styles.buttonContainer}>
+                {loading ? (
+                  <ActivityIndicator size="large" color="#5E72E4" />
+                ) : (
+                  <>
+                    <TouchableOpacity style={styles.button} onPress={handleVerifyCode}>
+                      <Text style={styles.buttonText}>Verify Code</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.button, styles.resendButton]}
+                      onPress={handleSendVerificationCode}
+                    >
+                      <Text style={styles.buttonText}>Resend Code</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </>
+          )}
+
+          {/* Step 3: Profile Creation (only for new users) */}
+          {verificationComplete && !isExistingUser && (
+            <>
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Username</Text>
                 <TextInput
@@ -165,34 +237,18 @@ export default function LoginScreen() {
                   editable={!loading}
                 />
               </View>
+
+              <View style={styles.buttonContainer}>
+                {loading ? (
+                  <ActivityIndicator size="large" color="#5E72E4" />
+                ) : (
+                  <TouchableOpacity style={styles.button} onPress={handleCompleteProfile}>
+                    <Text style={styles.buttonText}>Complete Profile</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </>
           )}
-
-          <View style={styles.buttonContainer}>
-            {loading ? (
-              <ActivityIndicator size="large" color="#5E72E4" />
-            ) : verificationSent ? (
-              <>
-                <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                  <Text style={styles.buttonText}>Login</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.button, styles.resendButton]}
-                  onPress={handleSendVerificationCode}
-                >
-                  <Text style={styles.buttonText}>Resend Code</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleSendVerificationCode}
-              >
-                <Text style={styles.buttonText}>Send Verification Code</Text>
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -223,7 +279,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#f5f5f5",
   },
-  // Here we add margins so the card doesn’t fill the entire screen:
+  // Here we add margins so the card doesn't fill the entire screen:
   formCard: {
     backgroundColor: "white",
     borderRadius: 16,
