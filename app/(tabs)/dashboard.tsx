@@ -103,6 +103,7 @@ export default function DashboardScreen() {
 
   const handleJoinGroup = async () => {
     console.log("User joins a group")
+    setShowJoinCreateModal(false);
     nav.push("/join-group");
   };
 
