@@ -26,7 +26,7 @@ import { useRouter } from "expo-router";
 import { Task, GroupMember } from "@/types/dashboard";
 import { supabase } from "@/lib/supabase";
 import { addHabitTask } from "@/lib/services/taskService";
-import styles from './dashboard.styles';
+import styles from '../styles/dashboard.styles';
 // Mock data for group members
 const groupMembers: GroupMember[] = [
   {
