@@ -1,23 +1,30 @@
+import {              // Importing chunks of named code from a library..
+  View,               // A container for layout (like a <div>)
+  Text,               // Displays text (like <p> or <span>)
+  StyleSheet,         // Used to define styles in JavaScript
+  TextInput,          // Input field for user text (like <input>)
+  TouchableOpacity,   // Pressable component with fade effect
+  Switch,             // Toggle switch (on/off)
+  Alert,              // Popup alert dialog (like an alert box)
+  ScrollView,         // Scrollable container for long content
+  Modal,              // Overlays content like a popup or dialog
+} from "react-native"; //react library.
+import { useRouter } from "expo-router";   // Hook for navigating between screens using Expo Router (e.g., router.push("/home"))
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Switch,
-  Alert,
-  ScrollView,
-  Modal,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native";
-import { useState } from "react";
+  ArrowLeft,   // Icon: left-facing arrow (often used for "back" buttons)
+  Check,       // Icon: checkmark (commonly used for confirm/save)
+  Edit2,       // Icon: pencil/edit (used to indicate editing something)
+  LogOut       // Icon: logout/exit (used for sign-out buttons)
+} from "lucide-react-native"; // Importing icons from Lucide(open-source icon library) for React Native
 
-export default function Profile() {
-  const [username, setUsername] = useState("vincent ngo");
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [newUsername, setNewUsername] = useState(username);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+import { useState } from "react"; 
+// 'Hook that lets you add and manage local state inside a component'
+
+export default function Profile() {                                   //MAIN FUNCTION, no inputs, outputs profile screen UI
+  const [username, setUsername] = useState("vincent ngo");            // 'const [stateValue, setStateValue] = useState(initialValue);'
+  const [editingUsername, setEditingUsername] = useState(false);      //
+  const [newUsername, setNewUsername] = useState(username);           //
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);  //
 
   const handleSaveUsername = () => {
     if (newUsername.trim()) {
