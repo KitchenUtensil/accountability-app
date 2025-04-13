@@ -5,7 +5,7 @@ import { useRouter } from "expo-router"
 import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from "expo-linear-gradient"
 
 export default function Profile() {
   const [username, setUsername] = useState("")
@@ -17,33 +17,24 @@ export default function Profile() {
 
   const router = useRouter()
 
-  // Fetch user profile when component mounts
   useEffect(() => {
     fetchUserProfile()
   }, [])
 
-  // Function to fetch user profile from Supabase
   const fetchUserProfile = async () => {
     try {
       setLoading(true)
-
-      // Get the current user's session
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession()
 
-      if (sessionError) {
-        throw sessionError
-      }
-
+      if (sessionError) throw sessionError
       if (!session) {
-        // No active session, redirect to login
         router.push("/")
         return
       }
 
-      // Fetch the user's profile from the profiles table
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("display_name")
@@ -51,12 +42,10 @@ export default function Profile() {
         .single()
 
       if (profileError && profileError.code !== "PGRST116") {
-        // PGRST116 is the "not found" error code
         throw profileError
       }
 
-      // Update the username state with the fetched display_name
-      if (profileData && profileData.display_name) {
+      if (profileData?.display_name) {
         setUsername(profileData.display_name)
         setNewUsername(profileData.display_name)
       }
@@ -68,7 +57,6 @@ export default function Profile() {
     }
   }
 
-  // Function to save username changes to Supabase
   const handleSaveUsername = async () => {
     if (!newUsername.trim()) {
       Alert.alert("Error", "Username cannot be empty")
@@ -77,33 +65,24 @@ export default function Profile() {
 
     try {
       setSavingUsername(true)
-
-      // Get current user session
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession()
 
-      if (sessionError) {
-        throw sessionError
-      }
-
+      if (sessionError) throw sessionError
       if (!session) {
         Alert.alert("Error", "You must be logged in to update your profile")
         return
       }
 
-      // Update the profile in Supabase
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ display_name: newUsername.trim() })
         .eq("user_id", session.user.id)
 
-      if (updateError) {
-        throw updateError
-      }
+      if (updateError) throw updateError
 
-      // Update local state
       setUsername(newUsername.trim())
       setEditingUsername(false)
       Alert.alert("Success", "Username updated successfully")
@@ -115,26 +94,125 @@ export default function Profile() {
     }
   }
 
-  // Function to handle logout
   const handleLogout = async () => {
     try {
       setShowLogoutConfirm(false)
-
-      // Call Supabase to sign out the user
       const { error } = await supabase.auth.signOut()
-
       if (error) {
         Alert.alert("Error", "Failed to log out: " + error.message)
         return
       }
-
-      // Navigate to the welcome screen after successful logout
       router.push("/")
     } catch (err) {
       console.error("Logout error:", err)
       Alert.alert("Error", "An unexpected error occurred during logout")
     }
   }
+
+  if (loading) {
+    return (
+      <LinearGradient colors={["#36D1DC", "#5B86E5"]} style={styles.gradientBackground}>
+        <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </SafeAreaView>
+      </LinearGradient>
+    )
+  }
+
+  return (
+    <LinearGradient colors={["#36D1DC", "#5B86E5"]} style={styles.gradientBackground}>
+      <SafeAreaView style={styles.container}>
+        {/* Matching Invite Members header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push("/dashboard")}>
+            <ArrowLeft size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <View style={{ width: 32 }} />
+        </View>
+
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{
+            paddingTop: 16,
+            paddingBottom: 40,
+            gap: 20,
+          }}
+        >
+          <View style={styles.card}>
+            {editingUsername ? (
+              <View style={styles.editUsernameContainer}>
+                <TextInput
+                  style={styles.usernameInput}
+                  value={newUsername}
+                  onChangeText={setNewUsername}
+                  autoFocus
+                  selectTextOnFocus
+                />
+                {savingUsername ? (
+                  <ActivityIndicator size="small" color="#5E72E4" style={{ marginLeft: 8 }} />
+                ) : (
+                  <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
+                    <Check size={20} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.usernameContainer}>
+                <Text style={styles.username}>{username || "Set your name"}</Text>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => {
+                    setNewUsername(username)
+                    setEditingUsername(true)
+                  }}
+                >
+                  <Edit2 size={16} color="#5E72E4" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
+              <LogOut size={20} color="#FF3B30" />
+              <Text style={styles.logoutText}>Log Out</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={showLogoutConfirm}
+          onRequestClose={() => setShowLogoutConfirm(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Log Out</Text>
+              <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowLogoutConfirm(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.modalButton, styles.logoutConfirmButton]} onPress={handleLogout}>
+                  <Text style={styles.logoutConfirmText}>Log Out</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </LinearGradient>
+  )
+}
 
   const styles = StyleSheet.create({
 
