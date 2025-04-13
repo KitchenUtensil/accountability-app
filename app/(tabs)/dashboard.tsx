@@ -102,14 +102,7 @@ export default function DashboardScreen() {
   };
 
   const handleJoinGroup = async () => {
-    console.log("User joins a group");
-    setShowJoinCreateModal(false);
-    try {
-      await AsyncStorage.clear();
-    } catch (e) {
-      // clear error
-    }
-    console.log("Cleared cache");
+    console.log("User joins a group")
     nav.push("/join-group");
   };
 
