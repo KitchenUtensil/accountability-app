@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -12,12 +12,15 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { CountryPicker } from "react-native-country-codes-picker";
 
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [smsCode, setSMSCode] = useState("");
   const [username, setUserName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [countryCode, setCountryCode] = useState("+1");
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
   const [isExistingUser, setIsExistingUser] = useState(false);
@@ -34,8 +37,8 @@ export default function LoginScreen() {
       setLoading(true);
       const formattedPhone = phoneNumber.startsWith("+")
         ? phoneNumber
-        : `+${phoneNumber}`;
-        
+        : `${countryCode}${phoneNumber}`;
+
       const { data, error } = await supabase.auth.signInWithOtp({
         phone: formattedPhone,
       });
@@ -62,41 +65,41 @@ export default function LoginScreen() {
       setLoading(true);
       const formattedPhone = phoneNumber.startsWith("+")
         ? phoneNumber
-        : `+${phoneNumber}`;
-      
+        : `${countryCode}${phoneNumber}`;
+
       const { data, error } = await supabase.auth.verifyOtp({
         phone: formattedPhone,
         token: smsCode,
-        type: 'sms',
+        type: "sms",
       });
 
       if (error) throw error;
-      
+
       // Check if user is available
       if (!data.user) {
         throw new Error("Verification successful but no user data returned");
       }
-      
+
       // Successfully verified code - now check if profile exists
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', data.user.id)
+        .from("profiles")
+        .select("*")
+        .eq("user_id", data.user.id)
         .single();
-        
-      if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "not found" error
+
+      if (profileError && profileError.code !== "PGRST116") {
+        // PGRST116 is "not found" error
         console.error("Error checking profile:", profileError);
         throw profileError;
       }
-      
+
       setIsExistingUser(!!profileData);
       setVerificationComplete(true);
-      
+
       // If user profile already exists, continue to dashboard
       if (profileData) {
-        router.push('/dashboard');
+        router.push("/dashboard");
       }
-      
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to verify code");
     } finally {
@@ -113,26 +116,24 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      
+
       const { data, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) throw sessionError;
       if (!data.session || !data.session.user) {
         throw new Error("No authenticated user found");
       }
-      
+
       // Create user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: data.session.user.id,
-          display_name: username,
-        });
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        user_id: data.session.user.id,
+        display_name: username,
+      });
 
       if (profileError) throw profileError;
-      
+
       // Navigate to dashboard
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to create profile");
     } finally {
@@ -160,17 +161,34 @@ export default function LoginScreen() {
             <>
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Phone Number</Text>
-                <TextInput
-                  style={styles.input}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  placeholder="Enter your phone number (+1234567890)"
-                  placeholderTextColor="#999"
-                  keyboardType="phone-pad"
-                  editable={!loading}
+                <View style={styles.phoneInputContainer}>
+                  <TouchableOpacity
+                    style={styles.countryCodeButton}
+                    onPress={() => setShowPicker(true)}
+                  >
+                    <Text style={styles.countryCodeText}>{countryCode}</Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.phoneInput}
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    placeholder="Enter your phone number"
+                    placeholderTextColor="#999"
+                    keyboardType="phone-pad"
+                    editable={!loading}
+                  />
+                </View>
+                <CountryPicker
+                  show={showPicker}
+                  pickerButtonOnPress={(item) => {
+                    setCountryCode(item.dial_code);
+                    setShowPicker(false);
+                  }}
+                  lang="en"
+                  style={styles.countryPicker}
                 />
               </View>
-              
+
               <View style={styles.buttonContainer}>
                 {loading ? (
                   <ActivityIndicator size="large" color="#5E72E4" />
@@ -179,7 +197,9 @@ export default function LoginScreen() {
                     style={styles.button}
                     onPress={handleSendVerificationCode}
                   >
-                    <Text style={styles.buttonText}>Send Verification Code</Text>
+                    <Text style={styles.buttonText}>
+                      Send Verification Code
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -207,7 +227,10 @@ export default function LoginScreen() {
                   <ActivityIndicator size="large" color="#5E72E4" />
                 ) : (
                   <>
-                    <TouchableOpacity style={styles.button} onPress={handleVerifyCode}>
+                    <TouchableOpacity
+                      style={styles.button}
+                      onPress={handleVerifyCode}
+                    >
                       <Text style={styles.buttonText}>Verify Code</Text>
                     </TouchableOpacity>
 
@@ -242,7 +265,10 @@ export default function LoginScreen() {
                 {loading ? (
                   <ActivityIndicator size="large" color="#5E72E4" />
                 ) : (
-                  <TouchableOpacity style={styles.button} onPress={handleCompleteProfile}>
+                  <TouchableOpacity
+                    style={styles.button}
+                    onPress={handleCompleteProfile}
+                  >
                     <Text style={styles.buttonText}>Complete Profile</Text>
                   </TouchableOpacity>
                 )}
@@ -279,17 +305,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#f5f5f5",
   },
-  // Here we add margins so the card doesn't fill the entire screen:
   formCard: {
     backgroundColor: "white",
     borderRadius: 16,
     padding: 20,
-
-    // Add margin to show more gradient around the card
     marginVertical: 20,
     marginHorizontal: 10,
-
-    // Subtle shadow/elevation
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
@@ -305,6 +326,36 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     color: "#333",
   },
+  phoneInputContainer: {
+    flexDirection: "row",
+    height: 50,
+  },
+  countryCodeButton: {
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderColor: "#dcdcdc",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    width: 80,
+    marginRight: 8,
+  },
+  countryCodeText: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#dcdcdc",
+    color: "#333",
+  },
   input: {
     backgroundColor: "#f0f0f0",
     borderRadius: 8,
@@ -314,6 +365,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#dcdcdc",
     color: "#333",
+    height: 50,
   },
   buttonContainer: {
     marginTop: 8,
@@ -332,5 +384,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  countryPicker: {
+    modal: {
+      height: 400,
+      backgroundColor: "#fff",
+    },
   },
 });
