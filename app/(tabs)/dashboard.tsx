@@ -58,7 +58,6 @@ export default function DashboardScreen() {
     async function checkGroupMembership() {
       try {
         setLoading(true);
-        console.log("Checking group membership...");
 
         const result = await checkUserInGroup();
 
@@ -235,7 +234,7 @@ export default function DashboardScreen() {
         {/* Example "flushed" gradient header (rather than big white header) */}
         <View style={styles.headerContainer}>
           <View style={styles.headerOverlay}>
-            <Text style={styles.groupName}>Morning Workout Crew</Text>
+            <Text style={styles.groupName}>{groupName}</Text>
             <View style={styles.headerIcons}>
               <TouchableOpacity
                 style={styles.iconButton}
