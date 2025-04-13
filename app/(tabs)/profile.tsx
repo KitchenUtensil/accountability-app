@@ -122,100 +122,102 @@ export default function Profile() {
 
   return (
     <LinearGradient colors={["#36D1DC", "#5B86E5"]} style={styles.gradientBackground}>
-      <SafeAreaView style={styles.container}>
-        {/* Matching Invite Members header */}
+      <SafeAreaView style={styles.statusBarCover} />
+   
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.push("/dashboard")}>
-            <ArrowLeft size={24} color="#333" />
+            <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
-          <View style={{ width: 32 }} />
         </View>
-
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={{
-            paddingTop: 16,
-            paddingBottom: 40,
-            gap: 20,
-          }}
-        >
-          <View style={styles.card}>
-            {editingUsername ? (
-              <View style={styles.editUsernameContainer}>
-                <TextInput
-                  style={styles.usernameInput}
-                  value={newUsername}
-                  onChangeText={setNewUsername}
-                  autoFocus
-                  selectTextOnFocus
-                />
-                {savingUsername ? (
-                  <ActivityIndicator size="small" color="#5E72E4" style={{ marginLeft: 8 }} />
-                ) : (
-                  <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
-                    <Check size={20} color="#fff" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <View style={styles.usernameContainer}>
-                <Text style={styles.username}>{username || "Set your name"}</Text>
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => {
-                    setNewUsername(username)
-                    setEditingUsername(true)
-                  }}
-                >
-                  <Edit2 size={16} color="#5E72E4" />
+  
+        <View style={styles.profileSection}>
+          {editingUsername ? (
+            <View style={styles.editUsernameContainer}>
+              <TextInput
+                style={styles.usernameInput}
+                value={newUsername}
+                onChangeText={setNewUsername}
+                autoFocus
+                selectTextOnFocus
+              />
+              {savingUsername ? (
+                <ActivityIndicator size="small" color="#5E72E4" style={{ marginLeft: 8 }} />
+              ) : (
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
+                  <Check size={20} color="#fff" />
                 </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Account</Text>
-            <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
-              <LogOut size={20} color="#FF3B30" />
-              <Text style={styles.logoutText}>Log Out</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={showLogoutConfirm}
-          onRequestClose={() => setShowLogoutConfirm(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Log Out</Text>
-              <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setShowLogoutConfirm(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.modalButton, styles.logoutConfirmButton]} onPress={handleLogout}>
-                  <Text style={styles.logoutConfirmText}>Log Out</Text>
-                </TouchableOpacity>
-              </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.usernameContainer}>
+              <Text style={styles.username}>{username || "Set your name"}</Text>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => {
+                  setNewUsername(username);
+                  setEditingUsername(true);
+                }}
+              >
+                <Edit2 size={16} color="#5E72E4" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+  
+        <View style={styles.accountSection}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
+            <LogOut size={20} color="#FF3B30" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+  
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showLogoutConfirm}
+        onRequestClose={() => setShowLogoutConfirm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Log Out</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.logoutConfirmButton]}
+                onPress={handleLogout}
+              >
+                <Text style={styles.logoutConfirmText}>Log Out</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </SafeAreaView>
+        </View>
+      </Modal>
     </LinearGradient>
   )
 }
 
   const styles = StyleSheet.create({
-
+    card: {
+      backgroundColor: "#fff",
+      padding: 16,
+      marginHorizontal: 24,
+      borderRadius: 12,
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    },
     statusBarCover: {
       flex: 0,
       backgroundColor: 'transparent',
@@ -410,97 +412,5 @@ export default function Profile() {
   })
 
   // Show loading indicator when initially loading the profile
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#5E72E4" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
-      </View>
-    )
-  }
 
-  return (
-    <LinearGradient colors={["#36D1DC", "#5B86E5"]} style={styles.gradientBackground}>
-      <SafeAreaView style={styles.statusBarCover} />
-   
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.push("/dashboard")}>
-            <ArrowLeft size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
-  
-        <View style={styles.profileSection}>
-          {editingUsername ? (
-            <View style={styles.editUsernameContainer}>
-              <TextInput
-                style={styles.usernameInput}
-                value={newUsername}
-                onChangeText={setNewUsername}
-                autoFocus
-                selectTextOnFocus
-              />
-              {savingUsername ? (
-                <ActivityIndicator size="small" color="#5E72E4" style={{ marginLeft: 8 }} />
-              ) : (
-                <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
-                  <Check size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            <View style={styles.usernameContainer}>
-              <Text style={styles.username}>{username || "Set your name"}</Text>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => {
-                  setNewUsername(username);
-                  setEditingUsername(true);
-                }}
-              >
-                <Edit2 size={16} color="#5E72E4" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-  
-        <View style={styles.accountSection}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
-            <LogOut size={20} color="#FF3B30" />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-  
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showLogoutConfirm}
-        onRequestClose={() => setShowLogoutConfirm(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Log Out</Text>
-            <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowLogoutConfirm(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.logoutConfirmButton]}
-                onPress={handleLogout}
-              >
-                <Text style={styles.logoutConfirmText}>Log Out</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </LinearGradient>
-  );
-}
+ 
