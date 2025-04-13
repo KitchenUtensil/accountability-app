@@ -67,6 +67,9 @@ export async function generateInviteCode(groupId: string): Promise<InviteRespons
  */
 export async function joinGroupWithInviteCode(inviteCode: string): Promise<{ success?: boolean; error?: InviteError }> {
   try {
+    // Convert invite code to lowercase
+    const normalizedInviteCode = inviteCode.toLowerCase();
+
     // First, get the user's session
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     
@@ -84,7 +87,7 @@ export async function joinGroupWithInviteCode(inviteCode: string): Promise<{ suc
     const { data: inviteData, error: inviteError } = await supabase
       .from('invites')
       .select('group_id, expires_at')
-      .eq('invite_code', inviteCode)
+      .eq('invite_code', normalizedInviteCode) // Use normalized invite code
       .gt('expires_at', new Date().toISOString()) // Check if not expired
       .single();
     
@@ -109,7 +112,8 @@ export async function joinGroupWithInviteCode(inviteCode: string): Promise<{ suc
       .from('group_members')
       .insert({
         user_id: userId,
-        group_id: inviteData.group_id
+        group_id: inviteData.group_id,
+        invite_code: normalizedInviteCode // Use normalized invite code
       });
     
     if (addMemberError) {
