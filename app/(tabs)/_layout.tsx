@@ -19,6 +19,7 @@ export default function TabLayout() {
       <Stack.Screen name="join-group"></Stack.Screen>
       <Stack.Screen name="dashboard"></Stack.Screen>
       <Stack.Screen name="invite-members"></Stack.Screen>
+      <Stack.Screen name="profile"></Stack.Screen>
     </Stack>
   );
 }
