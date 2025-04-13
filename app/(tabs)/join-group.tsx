@@ -101,6 +101,10 @@ export default function JoinGroupScreen() {
                   if (error) setError(null);
                 }}
                 autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                autoComplete="off"
+                keyboardType="visible-password" // Prevents suggestions
               />
 
               {error && <Text style={styles.errorText}>{error}</Text>}
