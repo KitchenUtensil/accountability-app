@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   Image,
   Modal,
   FlatList,
+  ActivityIndicator,
   SafeAreaView,
-  Alert,
 } from "react-native";
 import {
   CheckCircle,
@@ -19,22 +19,9 @@ import {
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { checkUserInGroup } from "@/lib/services/groupService";
 import { useRouter } from "expo-router";
-
-// Types for tasks/members (replace with your own definitions if you have them)
-export type Task = {
-  id: string;
-  title: string;
-  completed: boolean;
-};
-
-export type GroupMember = {
-  id: string;
-  name: string;
-  avatar: string;
-  tasks: Task[];
-  lastCheckin: string;
-};
+import {Task, GroupMember} from "@/types/dashboard";
 
 // Mock data for group members
 const groupMembers: GroupMember[] = [
@@ -78,18 +65,55 @@ const groupMembers: GroupMember[] = [
 ];
 
 export default function DashboardScreen() {
+  const [userInGroup, setUserInGroup] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [groupName, setGroupName] = useState<string | null>(null);
+
   const nav = useRouter();
-  
-  // Example logic: you can update this to real logic
-  const userInGroup = true; 
-  // If userInGroup is false, the "create/join" modal shows
 
-  // Fix for error: use optional chaining to avoid reading `.tasks` on undefined:
-  const [myTasks, setMyTasks] = useState<Task[]>(groupMembers[0]?.tasks ?? []);
-
-  const [showJoinCreateModal, setShowJoinCreateModal] = useState(!userInGroup);
+  const [showJoinCreateModal, setShowJoinCreateModal] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [myTasks, setMyTasks] = useState<Task[]>(groupMembers[0].tasks);
+
+  // Check if user is already in a group when component mounts
+  useEffect(() => {
+    async function checkGroupMembership() {
+      try {
+        setLoading(true);
+        console.log("Checking group membership...");
+
+        const result = await checkUserInGroup();
+
+        if (result.error) {
+          console.error("Error checking group membership:", result.error);
+          setUserInGroup(false);
+        } else {
+          setUserInGroup(result.isInGroup);
+
+          if (result.isInGroup && result.group) {
+            setGroupName(result.group.name);
+          }
+        }
+      } catch (error) {
+        console.error("Unexpected error checking group membership:", error);
+        setUserInGroup(false);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkGroupMembership();
+  }, []);
+
+  // Show the join/create modal if user is not in a group
+  useEffect(() => {
+    if (!loading && !userInGroup) {
+      setShowJoinCreateModal(true);
+    } else {
+      setShowJoinCreateModal(false);
+    }
+  }, [loading, userInGroup]);
 
   const handleCreateGroup = () => {
     console.log("User creates a group");
@@ -103,8 +127,9 @@ export default function DashboardScreen() {
     try {
       await AsyncStorage.clear();
     } catch (e) {
-      // Handle error if needed
+      // clear error
     }
+    console.log("Cleared cache");
     nav.push("/join-group");
   };
 
@@ -171,6 +196,15 @@ export default function DashboardScreen() {
       </View>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#5E72E4" />
+        <Text style={styles.loadingText}>Loading your group information...</Text>
+      </View>
+    );
+  }
 
   return (
     // **Ocean gradient** as the background
@@ -365,6 +399,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#5E72E4",
     marginLeft: 8,
+  },
+
+  // LOADING
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
   },
 
   // LIST
