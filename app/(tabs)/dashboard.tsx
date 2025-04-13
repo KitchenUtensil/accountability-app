@@ -25,6 +25,7 @@ import { checkUserInGroup } from "@/lib/services/groupService";
 import { useRouter } from "expo-router";
 import { Task, GroupMember } from "@/types/dashboard";
 import { supabase } from "@/lib/supabase";
+import { addHabitTask } from "@/lib/services/taskService";
 
 // Mock data for group members
 const groupMembers: GroupMember[] = [
@@ -141,58 +142,10 @@ export default function DashboardScreen() {
         completed: false,
       };
 
-      const { data: userData, error: userError } =
-        await supabase.auth.getUser();
-      if (userError || !userData?.user) {
-        console.error("Error fetching user", userError);
-        Alert.alert("User not authenticated");
-        return;
-      }
+      const { success, error } = await addHabitTask(newTaskTitle.trim());
 
-      const userId = userData.user.id;
-
-      const { data: userProfileData, error: userProfileError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", userId)
-        .single();
-      if (userProfileError || !userProfileData) {
-        console.error("error fetching user profile", userProfileError);
-        Alert.alert("failed to fetch user profile");
-        return;
-      }
-
-      const userIdBigInt = userProfileData.id;
-
-      // Get group ID for the user
-      const { data: groupData, error: groupError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", userId);
-
-      if (groupError || !groupData || groupData.length === 0) {
-        console.error("Error fetching group ID", groupError);
-        Alert.alert("No group found for user");
-        return;
-      }
-
-      const groupId = groupData[0].group_id;
-
-      // Insert habit into DB
-      const { data: habitData, error: habitError } = await supabase
-        .from("habits")
-        .insert([
-          {
-            group_id: groupId,
-            user_id: userIdBigInt,
-            name: newTaskTitle.trim(),
-          },
-        ])
-        .select();
-
-      if (habitError) {
-        console.error("Error inserting habit", habitError);
-        Alert.alert("Failed to save habit");
+      if (!success) {
+        Alert.alert(error?.message ?? "Failed to add task");
         return;
       }
 
