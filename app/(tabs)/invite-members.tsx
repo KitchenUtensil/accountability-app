@@ -1,9 +1,8 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   FlatList,
   Share,
@@ -11,16 +10,18 @@ import {
   ScrollView,
   Clipboard,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import {
   Copy,
   Share as ShareIcon,
-  Plus,
-  X,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { generateInviteCode } from "@/lib/services";
+import { checkUserInGroup } from "@/lib/services";
 
 // Mock data for existing members
 const existingMembers = [
@@ -30,38 +31,83 @@ const existingMembers = [
 ];
 
 export default function InviteMembersScreen() {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [invitedNumbers, setInvitedNumbers] = useState<string[]>([]);
-  const inviteCode = "ABC123"; // In a real app, this would be generated or fetched
-
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  
   const navigation = useRouter();
 
-  const handleAddNumber = () => {
-    if (phoneNumber && !invitedNumbers.includes(phoneNumber)) {
-      setInvitedNumbers([...invitedNumbers, phoneNumber]);
-      setPhoneNumber("");
+  // Check user's group on component mount
+  useEffect(() => {
+    checkUserGroup();
+  }, []);
+  
+  // Function to check if user is in a group and get group ID
+  const checkUserGroup = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const result = await checkUserInGroup();
+      
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      
+      if (!result.isInGroup || !result.group) {
+        navigation.push("/dashboard"); // Redirect if not in a group
+        return;
+      }
+      
+      setGroupId(result.group.id.toString());
+      fetchInviteCode(result.group.id.toString());
+    } catch (err: any) {
+      setError(err.message || "Failed to check group membership");
+      setLoading(false);
     }
   };
 
-  const handleRemoveNumber = (number: string) => {
-    setInvitedNumbers(invitedNumbers.filter((n) => n !== number));
+  // Function to fetch invite code
+  const fetchInviteCode = async (gid: string) => {
+    try {
+      setError(null);
+      if (refreshing) setRefreshing(true);
+      else setLoading(true);
+      
+      const response = await generateInviteCode(gid);
+      
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+      
+      setInviteCode(response.inviteCode || null);
+    } catch (err: any) {
+      setError(err.message || "Failed to generate invite code");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const handleSendInvites = () => {
-    // In a real app, this would call an API to send SMS invites
-    Alert.alert(
-      "Invites Sent",
-      `Invitations sent to ${invitedNumbers.length} contacts`
-    );
-    setInvitedNumbers([]);
+  // Function to refresh invite code
+  const handleRefreshInviteCode = () => {
+    if (!groupId) return;
+    setRefreshing(true);
+    fetchInviteCode(groupId);
   };
 
   const handleCopyInviteCode = () => {
+    if (!inviteCode) return;
+    
     Clipboard.setString(inviteCode);
     Alert.alert("Copied", "Invite code copied to clipboard");
   };
 
   const handleShareInvite = async () => {
+    if (!inviteCode) return;
+    
     try {
       await Share.share({
         message: `Join my accountability group on Accountable! Use invite code: ${inviteCode}`,
@@ -70,15 +116,6 @@ export default function InviteMembersScreen() {
       console.error(error);
     }
   };
-
-  const renderInvitedNumber = ({ item }: { item: string }) => (
-    <View style={styles.invitedNumberContainer}>
-      <Text style={styles.invitedNumber}>{item}</Text>
-      <TouchableOpacity onPress={() => handleRemoveNumber(item)}>
-        <X size={16} color="#999" />
-      </TouchableOpacity>
-    </View>
-  );
 
   const renderMember = ({ item }: { item: (typeof existingMembers)[0] }) => (
     <View style={styles.memberItem}>
@@ -112,44 +149,66 @@ export default function InviteMembersScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* SECTION: Invite by Phone */}
+          {/* SECTION: Invite by Code */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Invite via Phone Number</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter phone number"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-              />
-              <TouchableOpacity
-                style={[
-                  styles.addButton,
-                  !phoneNumber && styles.addButtonDisabled,
-                ]}
-                onPress={handleAddNumber}
-                disabled={!phoneNumber}
-              >
-                <Plus size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {invitedNumbers.length > 0 && (
-              <View style={styles.invitedNumbersContainer}>
-                <FlatList
-                  data={invitedNumbers}
-                  renderItem={renderInvitedNumber}
-                  keyExtractor={(item) => item}
-                  scrollEnabled={false}
-                />
-                <TouchableOpacity
-                  style={styles.sendInvitesButton}
-                  onPress={handleSendInvites}
+            <Text style={styles.sectionTitle}>Group Invite Code</Text>
+            
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#5E72E4" />
+                <Text style={styles.loadingText}>Loading invite code...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity 
+                  style={styles.retryButton} 
+                  onPress={() => groupId && fetchInviteCode(groupId)}
                 >
-                  <Text style={styles.sendInvitesText}>Send Invites</Text>
+                  <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
               </View>
+            ) : (
+              <>
+                <View style={styles.inviteCodeContainer}>
+                  <Text style={styles.inviteCode}>{inviteCode}</Text>
+                  <View style={styles.inviteCodeActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={handleCopyInviteCode}
+                    >
+                      <Copy size={20} color="#5E72E4" />
+                      <Text style={styles.actionButtonText}>Copy</Text>
+                    </TouchableOpacity>
+                  
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={handleShareInvite}
+                    >
+                      <ShareIcon size={20} color="#5E72E4" />
+                      <Text style={styles.actionButtonText}>Share</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={handleRefreshInviteCode}
+                      disabled={refreshing}
+                    >
+                      <RefreshCw size={20} color={refreshing ? "#999" : "#5E72E4"} />
+                      <Text style={[
+                        styles.actionButtonText, 
+                        refreshing && {color: "#999"}
+                      ]}>
+                        {refreshing ? "Refreshing..." : "Refresh"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={styles.inviteInstructions}>
+                  Share this code with people you want to invite to your group. The code expires after 24 hours.
+                </Text>
+              </>
             )}
           </View>
 
@@ -251,26 +310,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
-    justifyContent: "center",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    textAlign: "center",
-    marginBottom: 0,
   },
-
-  // *** The only changed line is here: ***
   memberCountBadge: {
     backgroundColor: "#5E72E4",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
     marginLeft: 10,
-    alignSelf: "center",
-    // Slight negative top margin to raise the badge:
-    marginTop: -4,
   },
   memberCountText: {
     color: "#fff",
@@ -279,58 +330,73 @@ const styles = StyleSheet.create({
   },
 
   // ---------------------
-  // INVITE MEMBERS
+  // INVITE CODE
   // ---------------------
-  inputContainer: {
-    flexDirection: "row",
+  loadingContainer: {
     alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
   },
-  input: {
-    flex: 1,
+  loadingText: {
+    marginTop: 10,
+    color: "#666",
+    fontSize: 14,
+  },
+  errorContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  errorText: {
+    color: "#e53e3e",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: "#5E72E4",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  inviteCodeContainer: {
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginRight: 8,
-  },
-  addButton: {
-    backgroundColor: "#5E72E4",
-    borderRadius: 8,
-    width: 44,
-    height: 44,
-    justifyContent: "center",
+    padding: 16,
+    marginVertical: 12,
     alignItems: "center",
   },
-  addButtonDisabled: {
-    backgroundColor: "#a0aaf0",
+  inviteCode: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: "#5E72E4",
+    marginBottom: 16,
   },
-  invitedNumbersContainer: {
-    marginTop: 16,
-  },
-  invitedNumberContainer: {
+  inviteCodeActions: {
     flexDirection: "row",
     justifyContent: "space-between",
+    width: "100%",
+  },
+  actionButton: {
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    padding: 8,
   },
-  invitedNumber: {
-    fontSize: 14,
-    color: "#333",
-  },
-  sendInvitesButton: {
-    backgroundColor: "#5E72E4",
-    borderRadius: 8,
-    padding: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  sendInvitesText: {
-    color: "#fff",
-    fontSize: 16,
+  actionButtonText: {
+    color: "#5E72E4",
+    marginTop: 4,
+    fontSize: 12,
     fontWeight: "600",
+  },
+  inviteInstructions: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 12,
+    lineHeight: 18,
   },
 
   // ---------------------

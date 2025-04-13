@@ -7,19 +7,53 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { ArrowLeft } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { joinGroupWithInviteCode } from "@/lib/services";
 
 export default function JoinGroupScreen() {
   const [inviteCode, setInviteCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigation = useRouter();
 
-  const handleJoinGroup = () => {
-    // In a real app, this would call an API to join the group
-    console.log("Joining group with code:", inviteCode);
-    navigation.navigate("/dashboard");
+  const handleJoinGroup = async () => {
+    if (inviteCode.trim().length < 1) {
+      setError("Please enter a valid invite code");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await joinGroupWithInviteCode(inviteCode.trim());
+      
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+      
+      if (response.success) {
+        Alert.alert(
+          "Success",
+          "You've successfully joined the group!",
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.push("/dashboard")
+            }
+          ]
+        );
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to join group");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Mock data for suggested groups (not used in the UI below,
@@ -60,22 +94,30 @@ export default function JoinGroupScreen() {
               <Text style={styles.label}>Invite Code</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter 6-digit code"
+                placeholder="Enter invite code"
                 value={inviteCode}
-                onChangeText={setInviteCode}
-                autoCapitalize="characters"
-                maxLength={6}
+                onChangeText={(text) => {
+                  setInviteCode(text);
+                  if (error) setError(null);
+                }}
+                autoCapitalize="none"
               />
+
+              {error && <Text style={styles.errorText}>{error}</Text>}
 
               <TouchableOpacity
                 style={[
                   styles.button,
-                  inviteCode.length < 6 && styles.buttonDisabled,
+                  (inviteCode.trim().length < 1 || loading) && styles.buttonDisabled,
                 ]}
                 onPress={handleJoinGroup}
-                disabled={inviteCode.length < 6}
+                disabled={inviteCode.trim().length < 1 || loading}
               >
-                <Text style={styles.buttonText}>Join Group</Text>
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.buttonText}>Join Group</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -92,7 +134,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  // The ScrollView’s content container
+  // The ScrollView's content container
   scrollContent: {
     // Center card if content is smaller than screen
     justifyContent: "center",
@@ -154,8 +196,10 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     marginBottom: 20,
-    textAlign: "center",
-    letterSpacing: 8,
+  },
+  errorText: {
+    color: "#e53e3e",
+    marginBottom: 12,
   },
 
   // BUTTON
