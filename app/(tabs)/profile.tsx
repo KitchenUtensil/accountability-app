@@ -1,25 +1,120 @@
 "use client"
 
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, Modal } from "react-native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
+} from "react-native"
 import { useRouter } from "expo-router"
 import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 // First, import the supabase client at the top of the file with the other imports
 import { supabase } from "@/lib/supabase"
 
 export default function Profile() {
-  const [username, setUsername] = useState("vincent ngo")
+  const [username, setUsername] = useState("")
   const [editingUsername, setEditingUsername] = useState(false)
-  const [newUsername, setNewUsername] = useState(username)
+  const [newUsername, setNewUsername] = useState("")
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleSaveUsername = () => {
-    if (newUsername.trim()) {
+  const router = useRouter()
+
+  // Add useEffect to fetch the user's profile when component mounts
+  useEffect(() => {
+    fetchUserProfile()
+  }, [])
+
+  // Function to fetch user profile from Supabase
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true)
+
+      // Get the current user's session
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        throw sessionError
+      }
+
+      if (!session) {
+        // No active session, redirect to login
+        router.push("/")
+        return
+      }
+
+      // Fetch the user's profile from the profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", session.user.id)
+        .single()
+
+      if (profileError) {
+        throw profileError
+      }
+
+      // Update the username state with the fetched display_name
+      if (profileData && profileData.display_name) {
+        setUsername(profileData.display_name)
+        setNewUsername(profileData.display_name)
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error)
+      Alert.alert("Error", "Failed to load profile information")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Update handleSaveUsername to save changes to Supabase
+  const handleSaveUsername = async () => {
+    if (!newUsername.trim()) {
+      Alert.alert("Error", "Username cannot be empty")
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      // Get current user session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        Alert.alert("Error", "You must be logged in to update your profile")
+        return
+      }
+
+      // Update the profile in Supabase
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: newUsername.trim() })
+        .eq("user_id", session.user.id)
+
+      if (error) {
+        throw error
+      }
+
+      // Update local state
       setUsername(newUsername.trim())
       setEditingUsername(false)
       Alert.alert("Success", "Username updated successfully")
-    } else {
-      Alert.alert("Error", "Username cannot be empty")
+    } catch (error) {
+      console.error("Error updating username:", error)
+      Alert.alert("Error", "Failed to update username")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -43,8 +138,6 @@ export default function Profile() {
       Alert.alert("Error", "An unexpected error occurred during logout")
     }
   }
-
-  const router = useRouter()
 
   const styles = StyleSheet.create({
     container: {
@@ -193,7 +286,26 @@ export default function Profile() {
       color: "#FF3B30",
       marginLeft: 12,
     },
+    loadingContainer: {
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    loadingText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: "#666",
+    },
   })
+
+  // Add a loading view
+  if (loading && !editingUsername) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#5E72E4" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
