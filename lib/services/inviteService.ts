@@ -109,7 +109,8 @@ export async function joinGroupWithInviteCode(inviteCode: string): Promise<{ suc
       .from('group_members')
       .insert({
         user_id: userId,
-        group_id: inviteData.group_id
+        group_id: inviteData.group_id,
+        invite_code: inviteCode
       });
     
     if (addMemberError) {
