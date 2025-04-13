@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -64,7 +65,7 @@ export default function CreateGroupScreen() {
             <View style={styles.header}>
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => navigation.push("/dashboard")}
+                onPress={() => router.push("/dashboard")}
               >
                 <ArrowLeft size={24} color="#333" />
               </TouchableOpacity>
