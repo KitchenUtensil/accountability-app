@@ -31,6 +31,7 @@ import {
   addHabitTask,
   deleteHabitTask,
   getHabitTasks,
+  markHabitComplete,
 } from "@/lib/services/taskService";
 
 // Mock data for group members
@@ -110,7 +111,14 @@ export default function DashboardScreen() {
           return;
         }
 
-        setGroupMembers(members ?? []);
+        // Sort members so that current user ("You") appears first
+        const sortedMembers = [...(members ?? [])].sort((a, b) => {
+          if (a.name === "You") return -1;
+          if (b.name === "You") return 1;
+          return 0;
+        });
+
+        setGroupMembers(sortedMembers);
       } catch (err) {
         console.error("Unexpected error fetching group tasks", err);
       }
@@ -139,23 +147,39 @@ export default function DashboardScreen() {
     setShowCheckInModal(true);
   };
 
-  const handleCompleteTask = () => {
+  const handleCompleteTask = async () => {
     if (!selectedTask) return;
-
-    setGroupMembers((prevMembers) =>
-      prevMembers.map((member) => {
-        if (member.name === "You") {
-          return {
-            ...member,
-            tasks: member.tasks.map((t) =>
-              t.id === selectedTask.id ? { ...t, completed: true } : t,
-            ),
-          };
-        }
-        return member;
-      }),
-    );
-    setShowCheckInModal(false);
+    
+    try {
+      setLoading(true);
+      // Call the markHabitComplete function
+      const { success, error } = await markHabitComplete(selectedTask.id);
+      
+      if (success) {
+        // Update the local state to reflect the change
+        setGroupMembers((prevMembers) =>
+          prevMembers.map((member) => {
+            if (member.name === "You") {
+              return {
+                ...member,
+                tasks: member.tasks.map((t) =>
+                  t.id === selectedTask.id ? { ...t, completed: true } : t,
+                ),
+              };
+            }
+            return member;
+          }),
+        );
+        setShowCheckInModal(false);
+      } else if (error) {
+        Alert.alert("Error", error.message || "Failed to complete task");
+      }
+    } catch (e) {
+      console.error("Unexpected error completing task:", e);
+      Alert.alert("Error", "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddTask = async () => {
@@ -398,15 +422,22 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   style={[styles.modalButton, styles.cancelButton]}
                   onPress={() => setShowCheckInModal(false)}
+                  disabled={loading}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.completeButton]}
-                  onPress={handleCompleteTask}
-                >
-                  <Text style={styles.completeButtonText}>Complete</Text>
-                </TouchableOpacity>
+                {loading ? (
+                  <View style={[styles.modalButton, styles.completeButton]}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.completeButton]}
+                    onPress={handleCompleteTask}
+                  >
+                    <Text style={styles.completeButtonText}>Complete</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>
