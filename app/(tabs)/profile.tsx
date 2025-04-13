@@ -1,40 +1,50 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Switch,
-  Alert,
-  ScrollView,
-  Modal,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native";
-import { useState } from "react";
+"use client"
+
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, Modal } from "react-native"
+import { useRouter } from "expo-router"
+import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native"
+import { useState } from "react"
+// First, import the supabase client at the top of the file with the other imports
+import { supabase } from "@/lib/supabase"
 
 export default function Profile() {
-  const [username, setUsername] = useState("vincent ngo");
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [newUsername, setNewUsername] = useState(username);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [username, setUsername] = useState("vincent ngo")
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState(username)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const handleSaveUsername = () => {
     if (newUsername.trim()) {
-      setUsername(newUsername.trim());
-      setEditingUsername(false);
-      Alert.alert("Success", "Username updated successfully");
+      setUsername(newUsername.trim())
+      setEditingUsername(false)
+      Alert.alert("Success", "Username updated successfully")
     } else {
-      Alert.alert("Error", "Username cannot be empty");
+      Alert.alert("Error", "Username cannot be empty")
     }
-  };
+  }
 
-  const handleLogout = () => {
-    setShowLogoutConfirm(false);
-    router.push("/");
-  };
+  // Then, update the handleLogout function to use Supabase's auth.signOut() method
+  const handleLogout = async () => {
+    try {
+      setShowLogoutConfirm(false)
 
-  const router = useRouter();
+      // Call Supabase to sign out the user
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        Alert.alert("Error", "Failed to log out: " + error.message)
+        return
+      }
+
+      // Navigate to the welcome screen after successful logout
+      router.push("/")
+    } catch (err) {
+      console.error("Logout error:", err)
+      Alert.alert("Error", "An unexpected error occurred during logout")
+    }
+  }
+
+  const router = useRouter()
 
   const styles = StyleSheet.create({
     container: {
@@ -183,15 +193,12 @@ export default function Profile() {
       color: "#FF3B30",
       marginLeft: 12,
     },
-  });
+  })
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push("/dashboard")}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push("/dashboard")}>
           <ArrowLeft size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -207,10 +214,7 @@ export default function Profile() {
                 autoFocus
                 selectTextOnFocus
               />
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveUsername}
-              >
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveUsername}>
                 <Check size={20} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -220,8 +224,8 @@ export default function Profile() {
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
-                  setNewUsername(username);
-                  setEditingUsername(true);
+                  setNewUsername(username)
+                  setEditingUsername(true)
                 }}
               >
                 <Edit2 size={16} color="#5E72E4" />
@@ -232,10 +236,7 @@ export default function Profile() {
         <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account</Text>
 
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => setShowLogoutConfirm(true)}
-          >
+          <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
             <LogOut size={20} color="#FF3B30" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
@@ -250,9 +251,7 @@ export default function Profile() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Log Out</Text>
-            <Text style={styles.modalMessage}>
-              Are you sure you want to log out?
-            </Text>
+            <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -262,10 +261,7 @@ export default function Profile() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.modalButton, styles.logoutConfirmButton]}
-                onPress={handleLogout}
-              >
+              <TouchableOpacity style={[styles.modalButton, styles.logoutConfirmButton]} onPress={handleLogout}>
                 <Text style={styles.logoutConfirmText}>Log Out</Text>
               </TouchableOpacity>
             </View>
@@ -273,5 +269,5 @@ export default function Profile() {
         </View>
       </Modal>
     </View>
-  );
+  )
 }
