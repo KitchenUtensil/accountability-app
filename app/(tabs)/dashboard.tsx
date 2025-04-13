@@ -18,6 +18,7 @@ import {
 } from "lucide-react-native";
 import { Task, GroupMember } from "@/types/dashboard";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TouchableWithoutFeedback } from "react-native-gesture-handler";
 
 // Mock data for group members and their tasks
@@ -62,7 +63,7 @@ const groupMembers: GroupMember[] = [
 ];
 
 const DashboardScreen = () => {
-  const userInGroup = false; //replace this later with real logic
+  const userInGroup = false; // TODO: replace this later with real logic
 
   const nav = useRouter();
 
@@ -77,9 +78,15 @@ const DashboardScreen = () => {
     nav.push("/create-group");
   };
 
-  const handleJoinGroup = () => {
+  const handleJoinGroup = async () => {
     console.log("User joins a group");
     setShowJoinCreateModal(false);
+      try {
+        await AsyncStorage.clear()
+      } catch(e) {
+        // clear error
+      }
+      console.log("Cleared cache")
     nav.push("/join-group");
   };
 

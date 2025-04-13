@@ -10,15 +10,43 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
+import { createGroup } from "@/lib/services/groupService";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function CreateGroupScreen() {
   const [groupName, setGroupName] = useState("");
-  const navigation = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleCreateGroup = () => {
-    // In a real app, this would call an API to create the group
-    navigation.push("/dashboard");
+  const router = useRouter();
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      Alert.alert("Error", "Please enter a group name");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await createGroup(groupName.trim());
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      Alert.alert(
+        "Success",
+        `Group "${groupName}" created successfully!`,
+        [{ text: "OK", onPress: () => router.push("/dashboard") }]
+      );
+    } catch (err: any) {
+      setError(err.message || "Failed to create group");
+      Alert.alert("Error", err.message || "Failed to create group");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
