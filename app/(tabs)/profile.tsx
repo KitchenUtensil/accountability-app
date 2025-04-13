@@ -1,11 +1,12 @@
 "use client"
 
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, Modal } from "react-native"
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, Modal, StatusBar, SafeAreaView } from "react-native"
 import { useRouter } from "expo-router"
 import { ArrowLeft, Check, Edit2, LogOut } from "lucide-react-native"
 import { useState } from "react"
 // First, import the supabase client at the top of the file with the other imports
 import { supabase } from "@/lib/supabase"
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Profile() {
   const [username, setUsername] = useState("vincent ngo")
@@ -47,20 +48,30 @@ export default function Profile() {
   const router = useRouter()
 
   const styles = StyleSheet.create({
-    container: {
+
+    topOverlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: StatusBar.currentHeight || 20, // space for battery/time
+      backgroundColor: "transparent",
+      zIndex: 1000, // stays above all scrolling content
+      pointerEvents: "none", // doesn't block touches or scroll                          // stays on top
+    },
+    gradientBackground: {
       flex: 1,
-      backgroundColor: "#f8f9fa",
+    },
+    scrollContent: {
+      paddingTop: StatusBar.currentHeight || 40,
+      paddingBottom: 24,
     },
     header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingTop: 60,
-      paddingBottom: 16,
-      backgroundColor: "#fff",
-      borderBottomWidth: 1,
-      borderBottomColor: "#eaeaea",
+      marginHorizontal: 24,
+      marginBottom: 16,
     },
     backButton: {
       padding: 4,
@@ -68,22 +79,28 @@ export default function Profile() {
     headerTitle: {
       fontSize: 18,
       fontWeight: "600",
-      color: "#333",
+      color: "#fff",
     },
     content: {
       flex: 1,
     },
     profileSection: {
-      backgroundColor: "#fff",
-      padding: 24,
+      backgroundColor: "transparent",
       alignItems: "center",
-      borderBottomWidth: 1,
-      borderBottomColor: "#eaeaea",
+      marginBottom: 16,
     },
     editUsernameContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 8,
+      marginHorizontal: 24,
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: "#fff",
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
     },
     usernameInput: {
       fontSize: 20,
@@ -91,7 +108,7 @@ export default function Profile() {
       borderBottomColor: "#5E72E4",
       paddingVertical: 4,
       paddingHorizontal: 8,
-      minWidth: 150,
+      flex: 1,
       textAlign: "center",
       marginRight: 8,
     },
@@ -106,7 +123,15 @@ export default function Profile() {
     usernameContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 8,
+      marginHorizontal: 24,
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: "#fff",
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
     },
     editButton: {
       padding: 4,
@@ -172,10 +197,13 @@ export default function Profile() {
     accountSection: {
       backgroundColor: "#fff",
       padding: 16,
-      marginTop: 16,
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: "#eaeaea",
+      marginHorizontal: 24,
+      borderRadius: 12,
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
     },
     sectionTitle: {
       fontSize: 18,
@@ -193,17 +221,22 @@ export default function Profile() {
       color: "#FF3B30",
       marginLeft: 12,
     },
-  })
+  });
+  
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push("/dashboard")}>
-          <ArrowLeft size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
-      <ScrollView style={styles.content}>
+    <LinearGradient colors={["#36D1DC", "#5B86E5"]} style={styles.gradientBackground}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <SafeAreaView style={styles.statusBarCover} />
+   
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push("/dashboard")}>
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
+  
         <View style={styles.profileSection}>
           {editingUsername ? (
             <View style={styles.editUsernameContainer}>
@@ -224,8 +257,8 @@ export default function Profile() {
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
-                  setNewUsername(username)
-                  setEditingUsername(true)
+                  setNewUsername(username);
+                  setEditingUsername(true);
                 }}
               >
                 <Edit2 size={16} color="#5E72E4" />
@@ -233,15 +266,16 @@ export default function Profile() {
             </View>
           )}
         </View>
+  
         <View style={styles.accountSection}>
           <Text style={styles.sectionTitle}>Account</Text>
-
           <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
             <LogOut size={20} color="#FF3B30" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+  
       <Modal
         animationType="fade"
         transparent={true}
@@ -252,7 +286,6 @@ export default function Profile() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Log Out</Text>
             <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
-
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -260,14 +293,16 @@ export default function Profile() {
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity style={[styles.modalButton, styles.logoutConfirmButton]} onPress={handleLogout}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.logoutConfirmButton]}
+                onPress={handleLogout}
+              >
                 <Text style={styles.logoutConfirmText}>Log Out</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
-  )
+    </LinearGradient>
+  );
 }
