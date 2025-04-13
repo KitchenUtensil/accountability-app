@@ -1,4 +1,4 @@
-import { SetStateAction, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Image,
   Modal,
   FlatList,
+  SafeAreaView,
+  Alert,
 } from "react-native";
 import {
   CheckCircle,
@@ -15,11 +17,26 @@ import {
   User,
   UserPlus,
 } from "lucide-react-native";
-import { Task, GroupMember } from "@/types/dashboard";
-import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 
-// Mock data for group members and their tasks
+// Types for tasks/members (replace with your own definitions if you have them)
+export type Task = {
+  id: string;
+  title: string;
+  completed: boolean;
+};
+
+export type GroupMember = {
+  id: string;
+  name: string;
+  avatar: string;
+  tasks: Task[];
+  lastCheckin: string;
+};
+
+// Mock data for group members
 const groupMembers: GroupMember[] = [
   {
     id: "1",
@@ -60,15 +77,19 @@ const groupMembers: GroupMember[] = [
   },
 ];
 
-const DashboardScreen = () => {
-  const userInGroup = true; // TODO: replace this later with real logic
-
+export default function DashboardScreen() {
   const nav = useRouter();
+  
+  // Example logic: you can update this to real logic
+  const userInGroup = true; 
+  // If userInGroup is false, the "create/join" modal shows
+
+  // Fix for error: use optional chaining to avoid reading `.tasks` on undefined:
+  const [myTasks, setMyTasks] = useState<Task[]>(groupMembers[0]?.tasks ?? []);
 
   const [showJoinCreateModal, setShowJoinCreateModal] = useState(!userInGroup);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [myTasks, setMyTasks] = useState<Task[]>(groupMembers[0].tasks);
 
   const handleCreateGroup = () => {
     console.log("User creates a group");
@@ -82,9 +103,8 @@ const DashboardScreen = () => {
     try {
       await AsyncStorage.clear();
     } catch (e) {
-      // clear error
+      // Handle error if needed
     }
-    console.log("Cleared cache");
     nav.push("/join-group");
   };
 
@@ -95,15 +115,15 @@ const DashboardScreen = () => {
 
   const handleCompleteTask = () => {
     if (!selectedTask) return;
-
-    setMyTasks(
-      myTasks.map((task) =>
-        task.id === selectedTask.id ? { ...task, completed: true } : task,
-      ),
+    setMyTasks((prev) =>
+      prev.map((t) =>
+        t.id === selectedTask.id ? { ...t, completed: true } : t
+      )
     );
     setShowCheckInModal(false);
   };
 
+  // Render each group member
   const renderMemberCard = ({ item }: { item: GroupMember }) => (
     <View style={styles.memberCard}>
       <View style={styles.memberHeader}>
@@ -119,6 +139,7 @@ const DashboardScreen = () => {
           <TouchableOpacity
             key={task.id}
             style={styles.taskItem}
+            // Only let the user press if it's *their* tasks and not completed
             onPress={() => (item.id === "1" ? handleTaskPress(task) : null)}
             disabled={item.id !== "1" || task.completed}
           >
@@ -152,155 +173,165 @@ const DashboardScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.groupName}>Morning Workout Crew</Text>
+    // **Ocean gradient** as the background
+    <LinearGradient
+      colors={["#36D1DC", "#5B86E5"]}
+      style={styles.gradientBackground}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        {/* Example "flushed" gradient header (rather than big white header) */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerOverlay}>
+            <Text style={styles.groupName}>Morning Workout Crew</Text>
+            <View style={styles.headerIcons}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => nav.push("/invite-members")}
+              >
+                <UserPlus size={24} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => nav.push("/profile")}
+              >
+                <User size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => nav.push("/invite-members")}
-          >
-            <UserPlus size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => nav.push("/profile")}
-          >
-            <User size={24} color="#333" />
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {!userInGroup && (
-        <View style={styles.groupActions}>
-          <TouchableOpacity
-            style={styles.groupActionButton}
-            onPress={() => console.log("create group")}
-          >
-            <PlusCircle size={18} color="#5E72E4" />
-            <Text style={styles.groupActionText}>Create Group</Text>
-          </TouchableOpacity>
+        {/* If user has no group: prompt them to create/join */}
+        {!userInGroup && (
+          <View style={styles.groupActions}>
+            <TouchableOpacity
+              style={styles.groupActionButton}
+              onPress={handleCreateGroup}
+            >
+              <PlusCircle size={18} color="#5E72E4" />
+              <Text style={styles.groupActionText}>Create Group</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.groupActionButton}
-            onPress={() => console.log("join group")}
-          >
-            <Users size={18} color="#5E72E4" />
-            <Text style={styles.groupActionText}>Join Group</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      <FlatList
-        data={groupMembers}
-        renderItem={renderMemberCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.membersList}
-      />
+            <TouchableOpacity
+              style={styles.groupActionButton}
+              onPress={handleJoinGroup}
+            >
+              <Users size={18} color="#5E72E4" />
+              <Text style={styles.groupActionText}>Join Group</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Check-in Confirmation Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showCheckInModal}
-        onRequestClose={() => setShowCheckInModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Complete Task</Text>
+        {/* Member List */}
+        <FlatList
+          data={groupMembers}
+          renderItem={renderMemberCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.membersList}
+        />
 
-            {selectedTask && (
-              <View style={styles.modalTaskDetails}>
-                <Text style={styles.modalTaskTitle}>{selectedTask.title}</Text>
-                <Text style={styles.modalTaskDescription}>
-                  Mark this task as completed for today?
-                </Text>
+        {/* Modal: Mark task completed */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showCheckInModal}
+          onRequestClose={() => setShowCheckInModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Complete Task</Text>
+              {selectedTask && (
+                <View style={styles.modalTaskDetails}>
+                  <Text style={styles.modalTaskTitle}>{selectedTask.title}</Text>
+                  <Text style={styles.modalTaskDescription}>
+                    Mark this task as completed?
+                  </Text>
+                </View>
+              )}
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowCheckInModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.completeButton]}
+                  onPress={handleCompleteTask}
+                >
+                  <Text style={styles.completeButtonText}>Complete</Text>
+                </TouchableOpacity>
               </View>
-            )}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowCheckInModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.completeButton]}
-                onPress={handleCompleteTask}
-              >
-                <Text style={styles.completeButtonText}>Complete</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showJoinCreateModal}
-        onRequestClose={() => setShowJoinCreateModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>No Active Group</Text>
-            <Text style={styles.modalTaskDescription}>
-              You are not currently in a group. Would you like to create or join
-              a group?
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.createButton]}
-                onPress={handleCreateGroup}
-              >
-                <Text style={styles.createButtonText}>Create Group</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.joinButton]}
-                onPress={handleJoinGroup}
-              >
-                <Text style={styles.joinButtonText}>Join Group</Text>
-              </TouchableOpacity>
+        </Modal>
+
+        {/* Modal: Create or Join */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showJoinCreateModal}
+          onRequestClose={() => setShowJoinCreateModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>No Active Group</Text>
+              <Text style={styles.modalTaskDescription}>
+                You are not currently in a group. Would you like to create or
+                join a group?
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.createButton]}
+                  onPress={handleCreateGroup}
+                >
+                  <Text style={styles.createButtonText}>Create Group</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.joinButton]}
+                  onPress={handleJoinGroup}
+                >
+                  <Text style={styles.joinButtonText}>Join Group</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </SafeAreaView>
+    </LinearGradient>
   );
-};
+}
 
+// ===================
+//       STYLES
+// ===================
 const styles = StyleSheet.create({
-  container: {
+  gradientBackground: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 60,
+  safeArea: {
+    flex: 1,
+  },
+
+  // HEADER
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eaeaea",
+  },
+  headerOverlay: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   groupName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  groupInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  groupMembers: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 6,
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#fff",
+    maxWidth: "70%",
   },
   headerIcons: {
     flexDirection: "row",
@@ -308,6 +339,8 @@ const styles = StyleSheet.create({
   iconButton: {
     marginLeft: 16,
   },
+
+  // GROUP ACTIONS
   groupActions: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -333,9 +366,13 @@ const styles = StyleSheet.create({
     color: "#5E72E4",
     marginLeft: 8,
   },
+
+  // LIST
   membersList: {
     padding: 16,
   },
+
+  // MEMBER CARD
   memberCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -353,9 +390,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     marginRight: 12,
   },
   memberName: {
@@ -411,9 +448,11 @@ const styles = StyleSheet.create({
     color: "#5E72E4",
     marginLeft: 8,
   },
+
+  // MODALS
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -430,11 +469,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
+    textAlign: "center",
+  },
+  modalTaskDetails: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  modalTaskTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
   },
   modalTaskDescription: {
     fontSize: 16,
     marginBottom: 24,
     textAlign: "center",
+    color: "#666",
   },
   modalButtons: {
     flexDirection: "row",
@@ -450,17 +501,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: "#f5f5f5",
-    marginRight: 8,
   },
   completeButton: {
     backgroundColor: "#5E72E4",
-    marginLeft: 8,
-  },
-  createButton: {
-    backgroundColor: "#5E72E4",
-  },
-  joinButton: {
-    backgroundColor: "#4CAF50",
   },
   cancelButtonText: {
     color: "#333",
@@ -472,6 +515,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  createButton: {
+    backgroundColor: "#5E72E4",
+  },
+  joinButton: {
+    backgroundColor: "#4CAF50",
+  },
   createButtonText: {
     color: "#fff",
     fontSize: 16,
@@ -482,16 +531,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  modalTaskDetails: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  modalTaskTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
 });
-
-export default DashboardScreen;
