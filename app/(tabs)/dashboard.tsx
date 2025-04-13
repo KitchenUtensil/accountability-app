@@ -12,14 +12,12 @@ import {
   CheckCircle,
   PlusCircle,
   Users,
-  Bell,
-  Settings,
+  User,
   UserPlus,
 } from "lucide-react-native";
 import { Task, GroupMember } from "@/types/dashboard";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { TouchableWithoutFeedback } from "react-native-gesture-handler";
 
 // Mock data for group members and their tasks
 const groupMembers: GroupMember[] = [
@@ -63,7 +61,7 @@ const groupMembers: GroupMember[] = [
 ];
 
 const DashboardScreen = () => {
-  const userInGroup = false; // TODO: replace this later with real logic
+  const userInGroup = true; // TODO: replace this later with real logic
 
   const nav = useRouter();
 
@@ -81,12 +79,12 @@ const DashboardScreen = () => {
   const handleJoinGroup = async () => {
     console.log("User joins a group");
     setShowJoinCreateModal(false);
-      try {
-        await AsyncStorage.clear()
-      } catch(e) {
-        // clear error
-      }
-      console.log("Cleared cache")
+    try {
+      await AsyncStorage.clear();
+    } catch (e) {
+      // clear error
+    }
+    console.log("Cleared cache");
     nav.push("/join-group");
   };
 
@@ -160,17 +158,17 @@ const DashboardScreen = () => {
           <Text style={styles.groupName}>Morning Workout Crew</Text>
         </View>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Bell size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Settings size={24} color="#333" />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => nav.push("/invite-members")}
           >
             <UserPlus size={24} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => nav.push("/profile")}
+          >
+            <User size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
