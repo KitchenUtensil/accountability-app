@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "expo-router";
@@ -185,7 +187,14 @@ export default function LoginScreen() {
                     setShowPicker(false);
                   }}
                   lang="en"
-                  style={styles.countryPicker}
+                  // Pass a properly typed style prop to CountryPicker
+                  // @ts-ignore - The CountryPicker library may have incompatible typings
+                  style={{
+                    modal: {
+                      height: 400,
+                      backgroundColor: "#fff",
+                    },
+                  }}
                 />
               </View>
 
@@ -281,8 +290,29 @@ export default function LoginScreen() {
   );
 }
 
+// Define types for styles
+interface Styles {
+  gradientBackground: ViewStyle;
+  container: ViewStyle;
+  headerContainer: ViewStyle;
+  title: TextStyle;
+  subtitle: TextStyle;
+  formCard: ViewStyle;
+  inputContainer: ViewStyle;
+  inputLabel: TextStyle;
+  phoneInputContainer: ViewStyle;
+  countryCodeButton: ViewStyle;
+  countryCodeText: TextStyle;
+  phoneInput: TextStyle;
+  input: TextStyle;
+  buttonContainer: ViewStyle;
+  button: ViewStyle;
+  resendButton: ViewStyle;
+  buttonText: TextStyle;
+}
+
 // Styles
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<Styles>({
   gradientBackground: {
     flex: 1,
   },
@@ -384,11 +414,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  countryPicker: {
-    modal: {
-      height: 400,
-      backgroundColor: "#fff",
-    },
   },
 });
