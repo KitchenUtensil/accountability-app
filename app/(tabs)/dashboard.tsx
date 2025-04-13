@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   FlatList,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
+  TextInput,
 } from "react-native";
 import {
   CheckCircle,
@@ -21,7 +23,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { checkUserInGroup } from "@/lib/services/groupService";
 import { useRouter } from "expo-router";
-import {Task, GroupMember} from "@/types/dashboard";
+import { Task, GroupMember } from "@/types/dashboard";
+import { supabase } from "@/lib/supabase";
 
 // Mock data for group members
 const groupMembers: GroupMember[] = [
@@ -34,33 +37,6 @@ const groupMembers: GroupMember[] = [
       { id: "2", title: "Read for 30 minutes", completed: false },
     ],
     lastCheckin: "2 hours ago",
-  },
-  {
-    id: "2",
-    name: "Sarah",
-    avatar: "https://placeholder.svg?height=50&width=50",
-    tasks: [
-      { id: "1", title: "Meditation", completed: true },
-      { id: "2", title: "Coding practice", completed: true },
-    ],
-    lastCheckin: "30 minutes ago",
-  },
-  {
-    id: "3",
-    name: "Mike",
-    avatar: "https://placeholder.svg?height=50&width=50",
-    tasks: [{ id: "1", title: "Run 5k", completed: true }],
-    lastCheckin: "1 hour ago",
-  },
-  {
-    id: "4",
-    name: "Jessica",
-    avatar: "https://placeholder.svg?height=50&width=50",
-    tasks: [
-      { id: "1", title: "Study Spanish", completed: false },
-      { id: "2", title: "Yoga session", completed: true },
-    ],
-    lastCheckin: "3 hours ago",
   },
 ];
 
@@ -107,6 +83,7 @@ export default function DashboardScreen() {
   }, []);
 
   // Show the join/create modal if user is not in a group
+
   useEffect(() => {
     if (!loading && !userInGroup) {
       setShowJoinCreateModal(true);
@@ -114,6 +91,9 @@ export default function DashboardScreen() {
       setShowJoinCreateModal(false);
     }
   }, [loading, userInGroup]);
+
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
   const handleCreateGroup = () => {
     console.log("User creates a group");
@@ -142,66 +122,152 @@ export default function DashboardScreen() {
     if (!selectedTask) return;
     setMyTasks((prev) =>
       prev.map((t) =>
-        t.id === selectedTask.id ? { ...t, completed: true } : t
-      )
+        t.id === selectedTask.id ? { ...t, completed: true } : t,
+      ),
     );
     setShowCheckInModal(false);
   };
 
+  const handleAddTask = async () => {
+    if (!newTaskTitle.trim()) {
+      Alert.alert("Task title is required");
+      return;
+    }
+
+    try {
+      const newTask: Task = {
+        id: Date.now().toString(),
+        title: newTaskTitle.trim(),
+        completed: false,
+      };
+
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+      if (userError || !userData?.user) {
+        console.error("Error fetching user", userError);
+        Alert.alert("User not authenticated");
+        return;
+      }
+
+      const userId = userData.user.id;
+
+      const { data: userProfileData, error: userProfileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .single();
+      if (userProfileError || !userProfileData) {
+        console.error("error fetching user profile", userProfileError);
+        Alert.alert("failed to fetch user profile");
+        return;
+      }
+
+      const userIdBigInt = userProfileData.id;
+
+      // Get group ID for the user
+      const { data: groupData, error: groupError } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", userId);
+
+      if (groupError || !groupData || groupData.length === 0) {
+        console.error("Error fetching group ID", groupError);
+        Alert.alert("No group found for user");
+        return;
+      }
+
+      const groupId = groupData[0].group_id;
+
+      // Insert habit into DB
+      const { data: habitData, error: habitError } = await supabase
+        .from("habits")
+        .insert([
+          {
+            group_id: groupId,
+            user_id: userIdBigInt,
+            name: newTaskTitle.trim(),
+          },
+        ])
+        .select();
+
+      if (habitError) {
+        console.error("Error inserting habit", habitError);
+        Alert.alert("Failed to save habit");
+        return;
+      }
+
+      // Update state
+      setMyTasks((prev) => [...prev, newTask]);
+      setNewTaskTitle("");
+      setShowAddTaskModal(false);
+    } catch (e) {
+      console.error("Unexpected error inserting habit:", e);
+      Alert.alert("Something went wrong");
+    }
+  };
   // Render each group member
-  const renderMemberCard = ({ item }: { item: GroupMember }) => (
-    <View style={styles.memberCard}>
-      <View style={styles.memberHeader}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        <View>
-          <Text style={styles.memberName}>{item.name}</Text>
-          <Text style={styles.lastCheckin}>{item.lastCheckin}</Text>
+  const renderMemberCard = ({ item }: { item: GroupMember }) => {
+    // Use updated tasks if it's the user
+    const tasks = item.id === "1" ? myTasks : item.tasks;
+
+    return (
+      <View style={styles.memberCard}>
+        <View style={styles.memberHeader}>
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          <View>
+            <Text style={styles.memberName}>{item.name}</Text>
+            <Text style={styles.lastCheckin}>{item.lastCheckin}</Text>
+          </View>
+        </View>
+
+        <View style={styles.taskList}>
+          {tasks.map((task) => (
+            <TouchableOpacity
+              key={task.id}
+              style={styles.taskItem}
+              onPress={() => (item.id === "1" ? handleTaskPress(task) : null)}
+              disabled={item.id !== "1" || task.completed}
+            >
+              <View
+                style={[
+                  styles.taskStatus,
+                  task.completed ? styles.taskCompleted : styles.taskPending,
+                ]}
+              >
+                {task.completed && <CheckCircle size={16} color="#fff" />}
+              </View>
+              <Text
+                style={[
+                  styles.taskTitle,
+                  task.completed && styles.taskTitleCompleted,
+                ]}
+              >
+                {task.title}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {item.id === "1" && (
+            <TouchableOpacity
+              style={styles.addTaskButton}
+              onPress={() => setShowAddTaskModal(true)}
+            >
+              <PlusCircle size={16} color="#5E72E4" />
+              <Text style={styles.addTaskText}>Add task</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-
-      <View style={styles.taskList}>
-        {item.tasks.map((task) => (
-          <TouchableOpacity
-            key={task.id}
-            style={styles.taskItem}
-            // Only let the user press if it's *their* tasks and not completed
-            onPress={() => (item.id === "1" ? handleTaskPress(task) : null)}
-            disabled={item.id !== "1" || task.completed}
-          >
-            <View
-              style={[
-                styles.taskStatus,
-                task.completed ? styles.taskCompleted : styles.taskPending,
-              ]}
-            >
-              {task.completed && <CheckCircle size={16} color="#fff" />}
-            </View>
-            <Text
-              style={[
-                styles.taskTitle,
-                task.completed && styles.taskTitleCompleted,
-              ]}
-            >
-              {task.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-
-        {item.id === "1" && (
-          <TouchableOpacity style={styles.addTaskButton}>
-            <PlusCircle size={16} color="#5E72E4" />
-            <Text style={styles.addTaskText}>Add task</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#5E72E4" />
-        <Text style={styles.loadingText}>Loading your group information...</Text>
+        <Text style={styles.loadingText}>
+          Loading your group information...
+        </Text>
       </View>
     );
   }
@@ -233,7 +299,6 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
-
         {/* If user has no group: prompt them to create/join */}
         {!userInGroup && (
           <View style={styles.groupActions}>
@@ -254,7 +319,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         )}
-
         {/* Member List */}
         <FlatList
           data={groupMembers}
@@ -262,7 +326,6 @@ export default function DashboardScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.membersList}
         />
-
         {/* Modal: Mark task completed */}
         <Modal
           animationType="slide"
@@ -275,7 +338,9 @@ export default function DashboardScreen() {
               <Text style={styles.modalTitle}>Complete Task</Text>
               {selectedTask && (
                 <View style={styles.modalTaskDetails}>
-                  <Text style={styles.modalTaskTitle}>{selectedTask.title}</Text>
+                  <Text style={styles.modalTaskTitle}>
+                    {selectedTask.title}
+                  </Text>
                   <Text style={styles.modalTaskDescription}>
                     Mark this task as completed?
                   </Text>
@@ -298,7 +363,6 @@ export default function DashboardScreen() {
             </View>
           </View>
         </Modal>
-
         {/* Modal: Create or Join */}
         <Modal
           animationType="slide"
@@ -325,6 +389,38 @@ export default function DashboardScreen() {
                   onPress={handleJoinGroup}
                 >
                   <Text style={styles.joinButtonText}>Join Group</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showAddTaskModal}
+          onRequestClose={() => setShowAddTaskModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Add New Task</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter task title"
+                value={newTaskTitle}
+                onChangeText={setNewTaskTitle}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowAddTaskModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.completeButton]}
+                  onPress={handleAddTask}
+                >
+                  <Text style={styles.completeButtonText}>Add</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -580,5 +676,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  input: {
+    width: "100%",
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 24,
+    backgroundColor: "#f9f9f9",
   },
 });
