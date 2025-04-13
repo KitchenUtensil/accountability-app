@@ -10,6 +10,7 @@ import {
   Alert,
   ScrollView,
   Clipboard,
+  SafeAreaView,
 } from "react-native";
 import {
   Copy,
@@ -19,6 +20,7 @@ import {
   ArrowLeft,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Mock data for existing members
 const existingMembers = [
@@ -27,7 +29,7 @@ const existingMembers = [
   { id: "3", name: "Mike", phoneNumber: "+1 (555) 345-6789", isAdmin: false },
 ];
 
-const InviteMembersScreen = () => {
+export default function InviteMembersScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [invitedNumbers, setInvitedNumbers] = useState<string[]>([]);
   const inviteCode = "ABC123"; // In a real app, this would be generated or fetched
@@ -49,7 +51,7 @@ const InviteMembersScreen = () => {
     // In a real app, this would call an API to send SMS invites
     Alert.alert(
       "Invites Sent",
-      `Invitations sent to ${invitedNumbers.length} contacts`,
+      `Invitations sent to ${invitedNumbers.length} contacts`
     );
     setInvitedNumbers([]);
   };
@@ -88,97 +90,127 @@ const InviteMembersScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.push("/dashboard")}
+    <LinearGradient
+      colors={["#36D1DC", "#5B86E5"]} // Ocean gradient background
+      style={styles.gradientBackground}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        {/* HEADER BAR */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.push("/dashboard")}
+          >
+            <ArrowLeft size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Invite Members</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* MAIN CONTENT SCROLL */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <ArrowLeft size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Invite Members</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Invite via Phone Number</Text>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter phone number"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              keyboardType="phone-pad"
-            />
-            <TouchableOpacity
-              style={[
-                styles.addButton,
-                !phoneNumber ? styles.addButtonDisabled : null,
-              ]}
-              onPress={handleAddNumber}
-              disabled={!phoneNumber}
-            >
-              <Plus size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {invitedNumbers.length > 0 && (
-            <View style={styles.invitedNumbersContainer}>
-              <FlatList
-                data={invitedNumbers}
-                renderItem={renderInvitedNumber}
-                keyExtractor={(item) => item}
-                scrollEnabled={false}
+          {/* SECTION: Invite by Phone */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Invite via Phone Number</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter phone number"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
               />
               <TouchableOpacity
-                style={styles.sendInvitesButton}
-                onPress={handleSendInvites}
+                style={[
+                  styles.addButton,
+                  !phoneNumber && styles.addButtonDisabled,
+                ]}
+                onPress={handleAddNumber}
+                disabled={!phoneNumber}
               >
-                <Text style={styles.sendInvitesText}>Send Invites</Text>
+                <Plus size={20} color="#fff" />
               </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.section}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Current Members</Text>
-            <View style={styles.memberCountBadge}>
-              <Text style={styles.memberCountText}>
-                {existingMembers.length}
-              </Text>
-            </View>
+            {invitedNumbers.length > 0 && (
+              <View style={styles.invitedNumbersContainer}>
+                <FlatList
+                  data={invitedNumbers}
+                  renderItem={renderInvitedNumber}
+                  keyExtractor={(item) => item}
+                  scrollEnabled={false}
+                />
+                <TouchableOpacity
+                  style={styles.sendInvitesButton}
+                  onPress={handleSendInvites}
+                >
+                  <Text style={styles.sendInvitesText}>Send Invites</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-          <FlatList
-            data={existingMembers}
-            renderItem={renderMember}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-          />
-        </View>
-      </ScrollView>
-    </View>
-  );
-};
 
+          {/* SPACER / DIVIDER */}
+          <View style={{ height: 12 }} />
+
+          {/* SECTION: Current Members */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Current Members</Text>
+              <View style={styles.memberCountBadge}>
+                <Text style={styles.memberCountText}>
+                  {existingMembers.length}
+                </Text>
+              </View>
+            </View>
+            <FlatList
+              data={existingMembers}
+              renderItem={renderMember}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+// ===================
+//       STYLES
+// ===================
 const styles = StyleSheet.create({
-  container: {
+  gradientBackground: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
   },
+  safeArea: {
+    flex: 1,
+  },
+
+  // ---------------------
+  // HEADER BAR
+  // ---------------------
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 16,
     paddingBottom: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#eaeaea",
+    // Subtle shadow for the header
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   backButton: {
     padding: 4,
@@ -189,39 +221,66 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   placeholder: {
-    width: 32,
+    width: 32, // keeps the title centered
   },
-  content: {
-    flex: 1,
+
+  // ---------------------
+  // SCROLL CONTENT
+  // ---------------------
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
-  section: {
+
+  // ---------------------
+  // CARD-LIKE SECTION
+  // ---------------------
+  sectionCard: {
     backgroundColor: "#fff",
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 8,
+    // Subtle shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    justifyContent: "center",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    marginBottom: 16,
+    textAlign: "center",
+    marginBottom: 0,
   },
-  sectionTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
+
+  // *** The only changed line is here: ***
   memberCountBadge: {
     backgroundColor: "#5E72E4",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    marginLeft: 8,
+    marginLeft: 10,
+    alignSelf: "center",
+    // Slight negative top margin to raise the badge:
+    marginTop: -4,
   },
   memberCountText: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
   },
+
+  // ---------------------
+  // INVITE MEMBERS
+  // ---------------------
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -273,48 +332,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  divider: {
-    height: 8,
-    backgroundColor: "#f8f9fa",
-  },
-  inviteCodeContainer: {
-    alignItems: "center",
-  },
-  inviteCodeLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  inviteCodeWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  inviteCode: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    letterSpacing: 2,
-    marginRight: 16,
-  },
-  shareButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#5E72E4",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  shareButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
+
+  // ---------------------
+  // MEMBERS
+  // ---------------------
   memberItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -336,17 +357,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
-  adminBadge: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  adminText: {
-    fontSize: 12,
-    color: "#666",
-    fontWeight: "500",
-  },
 });
-
-export default InviteMembersScreen;
