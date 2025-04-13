@@ -75,13 +75,13 @@ export async function createGroup(groupName: string): Promise<GroupResponse> {
       })
       .select()
       .single();
-    
+
     if (memberError) {
       // If adding the member fails, attempt to clean up by deleting the created group
       await supabase.from('groups').delete().eq('id', groupData.id);
       throw new GroupError("Failed to add you to the group: " + memberError.message, "MEMBER_ADD_ERROR");
     }
-    
+
     return {
       group: groupData,
       member: memberData
@@ -90,14 +90,14 @@ export async function createGroup(groupName: string): Promise<GroupResponse> {
     if (error instanceof GroupError) {
       return { error };
     }
-    
+
     // Handle unexpected errors
     console.error("Unexpected error in createGroup:", error);
-    return { 
+    return {
       error: new GroupError(
-        "An unexpected error occurred while creating the group", 
+        "An unexpected error occurred while creating the group",
         "UNKNOWN_ERROR"
-      ) 
+      )
     };
   }
 }
