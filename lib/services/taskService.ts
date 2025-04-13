@@ -131,7 +131,7 @@ export async function getHabitTasks(): Promise<{
     // Step 3: Get all members in the group (and their profiles)
     const { data: memberRows, error: memberError } = await supabase
       .from("group_members")
-      .select("user_id, profiles(created_at)")
+      .select("user_id, profiles(display_name)")
       .eq("group_id", groupId);
     if (memberError || !memberRows) {
       throw new GroupError(
@@ -141,7 +141,6 @@ export async function getHabitTasks(): Promise<{
     }
 
     console.log("fetching from: ", groupId);
-    console.log("AAAAAA");
     console.log(memberRows);
     // Step 4: Get all tasks in the group
     const { data: taskRows, error: taskError } = await supabase
@@ -173,7 +172,7 @@ export async function getHabitTasks(): Promise<{
       const profile = member.profiles;
 
       const name =
-        userId === currentUserId ? "You" : (profile?.name ?? "Unknown");
+        userId === currentUserId ? "You" : (profile?.display_name ?? "Unknown");
       const avatar =
         profile?.avatar ?? "https://placeholder.svg?height=50&width=50";
 

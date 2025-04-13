@@ -141,10 +141,19 @@ export default function DashboardScreen() {
 
   const handleCompleteTask = () => {
     if (!selectedTask) return;
-    setMyTasks((prev) =>
-      prev.map((t) =>
-        t.id === selectedTask.id ? { ...t, completed: true } : t,
-      ),
+
+    setGroupMembers((prevMembers) =>
+      prevMembers.map((member) => {
+        if (member.name === "You") {
+          return {
+            ...member,
+            tasks: member.tasks.map((t) =>
+              t.id === selectedTask.id ? { ...t, completed: true } : t,
+            ),
+          };
+        }
+        return member;
+      }),
     );
     setShowCheckInModal(false);
   };
@@ -171,7 +180,16 @@ export default function DashboardScreen() {
       };
 
       // Update state
-      setMyTasks((prev) => [...prev, newTask]);
+      setGroupMembers((prev) =>
+        prev.map((member) =>
+          member.name === "You"
+            ? {
+                ...member,
+                tasks: [...member.tasks, newTask],
+              }
+            : member,
+        ),
+      );
       setNewTaskTitle("");
       setShowAddTaskModal(false);
     } catch (e) {
@@ -226,8 +244,7 @@ export default function DashboardScreen() {
 
   // Render each group member
   const renderMemberCard = ({ item }: { item: GroupMember }) => {
-    // Use updated tasks if it's the user
-    const tasks = item.id === "1" ? myTasks : item.tasks;
+    const tasks = item.tasks;
 
     return (
       <View style={styles.memberCard}>
@@ -244,8 +261,10 @@ export default function DashboardScreen() {
             <View key={task.id} style={styles.taskItemContainer}>
               <TouchableOpacity
                 style={styles.taskItem}
-                onPress={() => (item.id === "1" ? handleTaskPress(task) : null)}
-                disabled={item.id !== "1" || task.completed}
+                onPress={() =>
+                  item.name === "You" ? handleTaskPress(task) : null
+                }
+                disabled={item.name !== "You" || task.completed}
               >
                 <View
                   style={[
