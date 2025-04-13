@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -18,26 +18,29 @@ import {
   Users,
   User,
   UserPlus,
+  Trash2,
+  MoreVertical,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { checkUserInGroup } from "@/lib/services/groupService";
 import { useRouter } from "expo-router";
 import { Task, GroupMember } from "@/types/dashboard";
-import { supabase } from "@/lib/supabase";
-import { addHabitTask } from "@/lib/services/taskService";
-import styles from '../styles/dashboard.styles';
+import styles from "../styles/dashboard.styles";
+import {
+  addHabitTask,
+  deleteHabitTask,
+  getHabitTasks,
+} from "@/lib/services/taskService";
+
 // Mock data for group members
 const groupMembers: GroupMember[] = [
   {
     id: "1",
     name: "You",
     avatar: "https://placeholder.svg?height=50&width=50",
-    tasks: [
-      { id: "1", title: "Morning workout", completed: false },
-      { id: "2", title: "Read for 30 minutes", completed: false },
-    ],
-    lastCheckin: "2 hours ago",
+    tasks: [],
+    lastCheckin: "",
   },
 ];
 
@@ -45,19 +48,23 @@ export default function DashboardScreen() {
   const [userInGroup, setUserInGroup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [groupName, setGroupName] = useState<string | null>(null);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
 
   const nav = useRouter();
 
   const [showJoinCreateModal, setShowJoinCreateModal] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [myTasks, setMyTasks] = useState<Task[]>(groupMembers[0].tasks);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [showTaskOptionsModal, setShowTaskOptionsModal] = useState(false);
 
   // Check if user is already in a group when component mounts
   useEffect(() => {
     async function checkGroupMembership() {
       try {
         setLoading(true);
+        console.log("Checking group membership...");
 
         const result = await checkUserInGroup();
 
@@ -83,7 +90,6 @@ export default function DashboardScreen() {
   }, []);
 
   // Show the join/create modal if user is not in a group
-
   useEffect(() => {
     if (!loading && !userInGroup) {
       setShowJoinCreateModal(true);
@@ -91,6 +97,27 @@ export default function DashboardScreen() {
       setShowJoinCreateModal(false);
     }
   }, [loading, userInGroup]);
+
+  useEffect(() => {
+    async function fetchAllGroupMembersAndTasks() {
+      if (!userInGroup) return;
+
+      try {
+        const { members, error } = await getHabitTasks();
+
+        if (error) {
+          console.error("Failed to fetch group tasks:", error.message);
+          return;
+        }
+
+        setGroupMembers(members ?? []);
+      } catch (err) {
+        console.error("Unexpected error fetching group tasks", err);
+      }
+    }
+
+    fetchAllGroupMembersAndTasks();
+  }, [userInGroup]);
 
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -129,18 +156,19 @@ export default function DashboardScreen() {
     }
 
     try {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: newTaskTitle.trim(),
-        completed: false,
-      };
-
-      const { success, error } = await addHabitTask(newTaskTitle.trim());
+      const { success, id, error } = await addHabitTask(newTaskTitle.trim());
 
       if (!success) {
+        console.log(error?.message);
         Alert.alert(error?.message ?? "Failed to add task");
         return;
       }
+
+      const newTask: Task = {
+        id: "" + id,
+        title: newTaskTitle.trim(),
+        completed: false,
+      };
 
       // Update state
       setMyTasks((prev) => [...prev, newTask]);
@@ -151,6 +179,51 @@ export default function DashboardScreen() {
       Alert.alert("Something went wrong");
     }
   };
+
+  const handleDeleteTask = (task: Task) => {
+    setTaskToDelete(task);
+    setShowDeleteConfirmModal(true);
+    setShowTaskOptionsModal(false);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      const { success, error } = await deleteHabitTask(taskToDelete.id);
+
+      if (success) {
+        console.log("task deleted successfully");
+      } else {
+        console.error(error);
+      }
+
+      setGroupMembers((prevMembers) =>
+        prevMembers.map((member) => {
+          if (member.name === "You") {
+            return {
+              ...member,
+              tasks: member.tasks.filter((t) => t.id !== taskToDelete.id),
+            };
+          }
+          return member;
+        }),
+      );
+
+      // Close the modal
+      setShowDeleteConfirmModal(false);
+      setTaskToDelete(null);
+    } catch (e) {
+      console.error("Error deleting task:", e);
+      Alert.alert("Failed to delete task");
+    }
+  };
+
+  const handleTaskOptions = (task: Task) => {
+    setSelectedTask(task);
+    setShowTaskOptionsModal(true);
+  };
+
   // Render each group member
   const renderMemberCard = ({ item }: { item: GroupMember }) => {
     // Use updated tasks if it's the user
@@ -168,32 +241,42 @@ export default function DashboardScreen() {
 
         <View style={styles.taskList}>
           {tasks.map((task) => (
-            <TouchableOpacity
-              key={task.id}
-              style={styles.taskItem}
-              onPress={() => (item.id === "1" ? handleTaskPress(task) : null)}
-              disabled={item.id !== "1" || task.completed}
-            >
-              <View
-                style={[
-                  styles.taskStatus,
-                  task.completed ? styles.taskCompleted : styles.taskPending,
-                ]}
+            <View key={task.id} style={styles.taskItemContainer}>
+              <TouchableOpacity
+                style={styles.taskItem}
+                onPress={() => (item.id === "1" ? handleTaskPress(task) : null)}
+                disabled={item.id !== "1" || task.completed}
               >
-                {task.completed && <CheckCircle size={16} color="#fff" />}
-              </View>
-              <Text
-                style={[
-                  styles.taskTitle,
-                  task.completed && styles.taskTitleCompleted,
-                ]}
-              >
-                {task.title}
-              </Text>
-            </TouchableOpacity>
+                <View
+                  style={[
+                    styles.taskStatus,
+                    task.completed ? styles.taskCompleted : styles.taskPending,
+                  ]}
+                >
+                  {task.completed && <CheckCircle size={16} color="#fff" />}
+                </View>
+                <Text
+                  style={[
+                    styles.taskTitle,
+                    task.completed && styles.taskTitleCompleted,
+                  ]}
+                >
+                  {task.title}
+                </Text>
+              </TouchableOpacity>
+
+              {item.name === "You" && (
+                <TouchableOpacity
+                  style={styles.taskOptionsButton}
+                  onPress={() => handleTaskOptions(task)}
+                >
+                  <MoreVertical size={16} color="#999" />
+                </TouchableOpacity>
+              )}
+            </View>
           ))}
 
-          {item.id === "1" && (
+          {item.name === "You" && (
             <TouchableOpacity
               style={styles.addTaskButton}
               onPress={() => setShowAddTaskModal(true)}
@@ -309,6 +392,7 @@ export default function DashboardScreen() {
             </View>
           </View>
         </Modal>
+
         {/* Modal: Create or Join */}
         <Modal
           animationType="slide"
@@ -340,6 +424,8 @@ export default function DashboardScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Modal: Add Task */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -372,8 +458,69 @@ export default function DashboardScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Modal: Task Options */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={showTaskOptionsModal}
+          onRequestClose={() => setShowTaskOptionsModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowTaskOptionsModal(false)}
+          >
+            <View style={styles.optionsModalContent}>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => selectedTask && handleDeleteTask(selectedTask)}
+              >
+                <Trash2 size={20} color="#FF3B30" />
+                <Text style={styles.deleteOptionText}>Delete Task</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Modal: Delete Confirmation */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={showDeleteConfirmModal}
+          onRequestClose={() => setShowDeleteConfirmModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Delete Task</Text>
+              {taskToDelete && (
+                <View style={styles.modalTaskDetails}>
+                  <Text style={styles.modalTaskTitle}>
+                    {taskToDelete.title}
+                  </Text>
+                  <Text style={styles.modalTaskDescription}>
+                    Are you sure you want to delete this task?
+                  </Text>
+                </View>
+              )}
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowDeleteConfirmModal(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.deleteButton]}
+                  onPress={confirmDeleteTask}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
 }
-
