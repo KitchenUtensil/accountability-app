@@ -56,7 +56,7 @@ export default function DashboardScreen() {
   const [showJoinCreateModal, setShowJoinCreateModal] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showTaskOptionsModal, setShowTaskOptionsModal] = useState(false);
