@@ -56,6 +56,7 @@ export default function DashboardScreen() {
   const [showJoinCreateModal, setShowJoinCreateModal] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showTaskOptionsModal, setShowTaskOptionsModal] = useState(false);
@@ -137,24 +138,25 @@ export default function DashboardScreen() {
   };
 
   const handleJoinGroup = async () => {
-    console.log("User joins a group")
+    console.log("User joins a group");
     setShowJoinCreateModal(false);
     nav.push("/join-group");
   };
 
   const handleTaskPress = (task: Task) => {
     setSelectedTask(task);
+    setSelectedTaskId(task.id);
     setShowCheckInModal(true);
   };
 
   const handleCompleteTask = async () => {
     if (!selectedTask) return;
-    
+
     try {
       setLoading(true);
       // Call the markHabitComplete function
       const { success, error } = await markHabitComplete(selectedTask.id);
-      
+
       if (success) {
         // Update the local state to reflect the change
         setGroupMembers((prevMembers) =>
