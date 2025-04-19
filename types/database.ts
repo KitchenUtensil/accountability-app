@@ -35,8 +35,9 @@ export interface HabitCompletion {
   id: number;
   habit_id: number;
   user_id: number | null;
-  date: string;
+  date: string | null;
   completed_at: string | null;
+  img_url: string;
 }
 
 export interface Database {
@@ -44,29 +45,29 @@ export interface Database {
     Tables: {
       profiles: {
         Row: Profile;
-        Insert: Omit<Profile, 'id' | 'created_at'>;
-        Update: Partial<Omit<Profile, 'id' | 'created_at'>>;
+        Insert: Omit<Profile, "id" | "created_at">;
+        Update: Partial<Omit<Profile, "id" | "created_at">>;
       };
       groups: {
         Row: Group;
-        Insert: Omit<Group, 'id' | 'created_at'>;
-        Update: Partial<Omit<Group, 'id' | 'created_at'>>;
+        Insert: Omit<Group, "id" | "created_at">;
+        Update: Partial<Omit<Group, "id" | "created_at">>;
       };
       group_members: {
         Row: GroupMember;
-        Insert: Omit<GroupMember, 'id' | 'joined_at'>;
-        Update: Partial<Omit<GroupMember, 'id' | 'joined_at'>>;
+        Insert: Omit<GroupMember, "id" | "joined_at">;
+        Update: Partial<Omit<GroupMember, "id" | "joined_at">>;
       };
       habits: {
         Row: Habit;
-        Insert: Omit<Habit, 'id' | 'created_at'>;
-        Update: Partial<Omit<Habit, 'id' | 'created_at'>>;
+        Insert: Omit<Habit, "id" | "created_at">;
+        Update: Partial<Omit<Habit, "id" | "created_at">>;
       };
       habit_completions: {
         Row: HabitCompletion;
-        Insert: Omit<HabitCompletion, 'id'>;
-        Update: Partial<Omit<HabitCompletion, 'id'>>;
+        Insert: Omit<HabitCompletion, "id">;
+        Update: Partial<Omit<HabitCompletion, "id">>;
       };
     };
   };
-} 
+}
