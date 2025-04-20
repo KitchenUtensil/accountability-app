@@ -9,6 +9,9 @@ export interface Task {
   id: string;
   title: string;
   completed: boolean;
+  completion?: {
+    image_uri: string;
+  } | null;
 }
 
 /**
@@ -20,4 +23,4 @@ export interface GroupMember {
   avatar: string;
   tasks: Task[];
   lastCheckin: string;
-} 
+}

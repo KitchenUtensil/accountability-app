@@ -20,6 +20,8 @@ import {
   UserPlus,
   Trash2,
   MoreVertical,
+  Camera,
+  CogIcon,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -33,6 +35,11 @@ import {
   getHabitTasks,
   markHabitComplete,
 } from "@/lib/services/taskService";
+import CameraCapture from "@/components/CameraCapture";
+import {
+  handleImageUpload,
+  addCompletion,
+} from "@/lib/services/completionService";
 
 // Mock data for group members
 const groupMembers: GroupMember[] = [
@@ -60,6 +67,8 @@ export default function DashboardScreen() {
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showTaskOptionsModal, setShowTaskOptionsModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState("");
 
   // Check if user is already in a group when component mounts
   useEffect(() => {
@@ -126,7 +135,15 @@ export default function DashboardScreen() {
     }
 
     fetchAllGroupMembersAndTasks();
-  }, [userInGroup]);
+  }, [userInGroup, capturedPhotoUri]);
+
+  useEffect(() => {
+    groupMembers.map((g) => console.log(g.tasks));
+  }, [groupMembers]);
+
+  useEffect(() => {
+    console.log("captured: ", capturedPhotoUri);
+  }, [capturedPhotoUri]);
 
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -155,23 +172,39 @@ export default function DashboardScreen() {
     try {
       setLoading(true);
       // Call the markHabitComplete function
+
+      const { publicUrl, error: uploadError } =
+        await handleImageUpload(capturedPhotoUri);
+
+      if (uploadError || !publicUrl) {
+        console.error(uploadError);
+        throw new Error("picture url not defined!");
+      }
+
+      const { success: insertSuccess, error: insertError } =
+        await addCompletion(selectedTask.id, publicUrl);
+
+      if (!insertSuccess || insertError) {
+        throw new Error(insertError?.message || "Failed to record completion");
+      }
+
       const { success, error } = await markHabitComplete(selectedTask.id);
 
       if (success) {
-        // Update the local state to reflect the change
-        setGroupMembers((prevMembers) =>
-          prevMembers.map((member) => {
-            if (member.name === "You") {
-              return {
-                ...member,
-                tasks: member.tasks.map((t) =>
-                  t.id === selectedTask.id ? { ...t, completed: true } : t,
-                ),
-              };
-            }
-            return member;
-          }),
-        );
+        const { members, error: fetchError } = await getHabitTasks();
+
+        if (fetchError) {
+          console.error(
+            "Failed to refresh group data after completion:",
+            fetchError.message,
+          );
+        } else {
+          const sortedMembers = [...(members ?? [])].sort((a, b) =>
+            a.name === "You" ? -1 : b.name === "You" ? 1 : 0,
+          );
+          setGroupMembers(sortedMembers);
+        }
+        setCapturedPhotoUri("");
         setShowCheckInModal(false);
       } else if (error) {
         Alert.alert("Error", error.message || "Failed to complete task");
@@ -268,6 +301,23 @@ export default function DashboardScreen() {
     setShowTaskOptionsModal(true);
   };
 
+  const handleStartCamera = () => {
+    setShowCameraModal(true);
+    setShowCheckInModal(false);
+  };
+
+  const handleCameraCapture = (uri: string) => {
+    setCapturedPhotoUri(uri);
+    setShowCameraModal(false);
+    setShowCheckInModal(true);
+  };
+
+  const handleCameraCancel = () => {
+    setCapturedPhotoUri("");
+    setShowCameraModal(false);
+    setShowCheckInModal(true);
+  };
+
   // Render each group member
   const renderMemberCard = ({ item }: { item: GroupMember }) => {
     const tasks = item.tasks;
@@ -310,12 +360,21 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
 
+              {task.completed && task.completion?.image_uri && (
+                <View style={styles.taskPhotoContainer}>
+                  <Image
+                    source={{ uri: task.completion.image_uri }}
+                    style={styles.taskPhoto}
+                  ></Image>
+                </View>
+              )}
+
               {item.name === "You" && (
                 <TouchableOpacity
                   style={styles.taskOptionsButton}
                   onPress={() => handleTaskOptions(task)}
                 >
-                  <MoreVertical size={16} color="#999" />
+                  <CogIcon size={16} color="#999" />
                 </TouchableOpacity>
               )}
             </View>
@@ -416,8 +475,22 @@ export default function DashboardScreen() {
                     {selectedTask.title}
                   </Text>
                   <Text style={styles.modalTaskDescription}>
-                    Mark this task as completed?
+                    Take a photo to prove you were doing that task!
                   </Text>
+                  {capturedPhotoUri ? (
+                    <View>
+                      <Image source={{ uri: capturedPhotoUri }} />
+                      <TouchableOpacity>
+                        <Text>Retake Photo</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity onPress={handleStartCamera}>
+                      <Camera size={20} color="#fff" />
+                      <Text style={styles.takePhotoText}>Take Photo</Text>
+                    </TouchableOpacity>
+                  )}
+                  st
                 </View>
               )}
               <View style={styles.modalButtons}>
@@ -436,6 +509,7 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     style={[styles.modalButton, styles.completeButton]}
                     onPress={handleCompleteTask}
+                    disabled={!capturedPhotoUri}
                   >
                     <Text style={styles.completeButtonText}>Complete</Text>
                   </TouchableOpacity>
@@ -443,6 +517,18 @@ export default function DashboardScreen() {
               </View>
             </View>
           </View>
+        </Modal>
+
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={showCameraModal}
+          onRequestClose={handleCameraCancel}
+        >
+          <CameraCapture
+            onCapture={handleCameraCapture}
+            onCancel={handleCameraCancel}
+          />
         </Modal>
 
         {/* Modal: Create or Join */}

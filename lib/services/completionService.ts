@@ -2,7 +2,7 @@ import { supabase } from "../supabase";
 import * as FileSystem from "expo-file-system";
 import { decode } from "base64-arraybuffer";
 
-const BUCKET_NAME = "habit-photos";
+const BUCKET_NAME = "habitphotos";
 
 export class CompletionError extends Error {
   constructor(
@@ -16,9 +16,16 @@ export class CompletionError extends Error {
 
 export async function handleImageUpload(
   imageUri: string,
-  userId: string,
 ): Promise<{ publicUrl: string | null; error: Error | null }> {
   try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !userData?.user) {
+      throw new CompletionError("User not authenticated", "AUTH_ERROR");
+    }
+
+    const userId = userData.user.id;
+
     // Step 1: Read image as base64
     const base64 = await FileSystem.readAsStringAsync(imageUri, {
       encoding: FileSystem.EncodingType.Base64,
@@ -73,7 +80,8 @@ export async function addCompletion(
       .insert({
         habit_id: taskId,
         user_id: userId,
-        image_uri: publicUri,
+        img_url: publicUri,
+        date: new Date().toISOString(),
       });
 
     if (completionError) {

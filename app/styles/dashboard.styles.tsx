@@ -67,7 +67,6 @@ const styles = StyleSheet.create({
   },
 
   // LOADING
-
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -123,10 +122,24 @@ const styles = StyleSheet.create({
   taskList: {
     marginTop: 8,
   },
+  taskItemContainer: {
+    flexDirection: "column",
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    paddingBottom: 8,
+  },
   taskItem: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
+    flex: 1,
+  },
+  taskItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
   },
   taskStatus: {
     width: 24,
@@ -147,10 +160,14 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 15,
     color: "#333",
+    flex: 1,
   },
   taskTitleCompleted: {
     textDecorationLine: "line-through",
     color: "#999",
+  },
+  taskOptionsButton: {
+    padding: 8,
   },
   addTaskButton: {
     flexDirection: "row",
@@ -162,6 +179,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#5E72E4",
     marginLeft: 8,
+  },
+
+  // TASK PHOTOS
+  taskPhotoContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    width: "100%",
+    alignItems: "center", // Center the image horizontally
+    justifyContent: "center",
+  },
+  taskPhoto: {
+    width: 200, // Larger square dimensions
+    height: 200, // Same as width for square aspect ratio
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  photoPreviewContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  photoPreview: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  retakePhotoButton: {
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  retakePhotoText: {
+    color: "#5E72E4",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  cameraButton: {
+    backgroundColor: "#5E72E4",
+    padding: 16,
+    borderRadius: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginTop: 8,
   },
 
   // MODALS
@@ -179,6 +244,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     width: "80%",
+    maxHeight: "80%",
   },
   modalTitle: {
     fontSize: 20,
@@ -189,6 +255,7 @@ const styles = StyleSheet.create({
   modalTaskDetails: {
     alignItems: "center",
     marginBottom: 32,
+    width: "100%",
   },
   modalTaskTitle: {
     fontSize: 18,
@@ -282,13 +349,11 @@ const styles = StyleSheet.create({
     color: "#FF3B30",
     marginLeft: 12,
   },
-  taskItemContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  taskOptionsButton: {
-    padding: 8,
+  takePhotoText: {
+    color: "#5E72E4",
+    fontSize: 16,
+    marginTop: 8,
+    textAlign: "center",
   },
 });
 
