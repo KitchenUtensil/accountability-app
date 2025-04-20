@@ -1,4 +1,5 @@
 import { supabase } from "../supabase";
+import { CompletionError } from "./completionService";
 import { GroupError } from "./groupService";
 import { Task, GroupMember } from "@/types/dashboard";
 
@@ -93,14 +94,57 @@ export async function deleteHabitTask(
   taskId: string,
 ): Promise<{ success: boolean; error?: HabitError }> {
   try {
-    console.log("attempting to delete task: ", taskId);
-    const { data, error } = await supabase
+    const { data, error: habitError } = await supabase
       .from("habits")
       .delete()
       .eq("id", Number(taskId));
-    if (error) {
+
+    const { data: completionsData, error: completionError } = await supabase
+      .from("habit_completions")
+      .delete()
+      .eq("habit_id", Number(taskId))
+      .select("img_url");
+
+    if (completionError || !completionsData) {
+      console.error(completionError);
+      throw new CompletionError(
+        "Failed to delete completion or fetch image URIs",
+        "COMPLETION_DELETE_ERROR",
+      );
+    }
+
+    console.log(completionsData);
+
+    const urisToDelete = (completionsData ?? []).map((c) => c.img_url);
+
+    console.log("uris to delete", urisToDelete);
+
+    if (habitError) {
       throw new HabitError("Failed to delete task", "TASK_DELETE_ERROR");
     }
+
+    const filePaths = urisToDelete.map((uri) => {
+      const parts = uri.split("/public/"); // gets [".../storage/v1/object", "<bucket>/<path>"]
+      return parts[1]; // "<bucket>/<path/to/file.jpg>"
+    });
+
+    const bucket = "habitphotos";
+
+    const pathsInBucket = filePaths.map((fp) => fp.replace(`${bucket}/`, ""));
+
+    const { data: deleteResult, error: storageError } = await supabase.storage
+      .from(bucket)
+      .remove(pathsInBucket);
+
+    if (storageError) {
+      console.error(
+        "Error deleting images from storage:",
+        storageError.message,
+      );
+    } else {
+      console.log("Successfully deleted image files:", deleteResult);
+    }
+
     return { success: true };
   } catch (e) {
     if (e instanceof HabitError) {
@@ -152,8 +196,6 @@ export async function getHabitTasks(): Promise<{
       );
     }
 
-    console.log("fetching from: ", groupId);
-    console.log(memberRows);
     // Step 4: Get all tasks in the group
     const { data: taskRows, error: taskError } = await supabase
       .from("habits")
@@ -162,6 +204,23 @@ export async function getHabitTasks(): Promise<{
 
     if (taskError || !taskRows) {
       throw new HabitError("Failed to fetch habit tasks", "TASK_FETCH_ERROR");
+    }
+
+    //get all completions
+
+    const habitIds = taskRows.map((t) => t.id);
+
+    const { data: completionRows, error: completionError } = await supabase
+      .from("habit_completions")
+      .select("id, img_url, habit_id, date")
+      .in("habit_id", habitIds);
+
+    if (completionError) {
+      console.error(completionError);
+      throw new HabitError(
+        "Failed to fetch habit completions",
+        "COMPLETION_FETCH_ERROR",
+      );
     }
 
     //get all profiles in a group
@@ -178,42 +237,54 @@ export async function getHabitTasks(): Promise<{
     }
 
     // Step 5: Group tasks by user (synchronously)
-    const members: GroupMember[] = memberRows.map((member: MemberWithProfile) => {
-      console.log(member);
-      const userId = member.user_id;
-      let displayName = "Unknown";
-      
-      // Extract display name from profiles data which could have different structures
-      if (member.profiles) {
-        if (Array.isArray(member.profiles) && member.profiles.length > 0) {
-          const profile = member.profiles[0] as ProfileData;
-          displayName = profile.display_name || "Unknown";
-        } 
-        else if (typeof member.profiles === 'object') {
-          // Handle direct object with display_name property
-          const profile = member.profiles as ProfileData;
-          displayName = profile.display_name || "Unknown";
+    const members: GroupMember[] = memberRows.map(
+      (member: MemberWithProfile) => {
+        const userId = member.user_id;
+        let displayName = "Unknown";
+
+        // Extract display name from profiles data which could have different structures
+        if (member.profiles) {
+          if (Array.isArray(member.profiles) && member.profiles.length > 0) {
+            const profile = member.profiles[0] as ProfileData;
+            displayName = profile.display_name || "Unknown";
+          } else if (typeof member.profiles === "object") {
+            // Handle direct object with display_name property
+            const profile = member.profiles as ProfileData;
+            displayName = profile.display_name || "Unknown";
+          }
         }
-      }
 
-      const name = userId === currentUserId ? "You" : displayName;
-      const avatar = "https://placeholder.svg?height=50&width=50"; // Default avatar for all users
+        const name = userId === currentUserId ? "You" : displayName;
+        const avatar = "https://placeholder.svg?height=50&width=50"; // Default avatar for all users
 
-      const userTasks = taskRows.filter((task) => task.user_id === userId);
-      const tasks: Task[] = userTasks.map((task) => ({
-        id: task.id.toString(),
-        title: task.name,
-        completed: task.completed || false, // Provide a default value if completed is null
-      }));
+        const userTasks = taskRows.filter((task) => task.user_id === userId);
+        const tasks: Task[] = userTasks.map((task) => {
+          const matchingCompletion = completionRows?.find(
+            (c) => String(c.habit_id) === String(task.id),
+          );
 
-      return {
-        id: userId,
-        name,
-        avatar,
-        tasks,
-        lastCheckin: "", // Replace this if you track activity
-      };
-    });
+          return {
+            id: task.id.toString(),
+            title: task.name,
+            completed: task.completed || false,
+            completion: matchingCompletion
+              ? {
+                  image_uri: matchingCompletion.img_url,
+                  completed_at: matchingCompletion.date,
+                }
+              : null,
+          };
+        });
+
+        return {
+          id: userId,
+          name,
+          avatar,
+          tasks,
+          lastCheckin: "", // Replace this if you track activity
+        };
+      },
+    );
 
     return { members };
   } catch (e) {
@@ -229,7 +300,7 @@ export async function getHabitTasks(): Promise<{
 }
 
 export async function markHabitComplete(
-  taskId: string
+  taskId: string,
 ): Promise<{ success: boolean; error?: HabitError }> {
   try {
     // Update the habit directly to set completed status to true
@@ -239,7 +310,10 @@ export async function markHabitComplete(
       .eq("id", Number(taskId));
 
     if (updateError) {
-      throw new HabitError("Failed to complete habit task", "TASK_UPDATE_ERROR");
+      throw new HabitError(
+        "Failed to complete habit task",
+        "TASK_UPDATE_ERROR",
+      );
     }
 
     return { success: true };

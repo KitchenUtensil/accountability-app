@@ -1,6 +1,4 @@
-"use client"
-
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,59 +7,76 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-} from "react-native"
-import { CameraView, useCameraPermissions } from "expo-camera"
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator"
-import { X, Camera as CameraIcon, RotateCcw } from "lucide-react-native"
-import type { CameraCapturedPicture } from "expo-camera"
+} from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { X, Camera as CameraIcon, RotateCcw } from "lucide-react-native";
+import type { CameraCapturedPicture } from "expo-camera";
 
 interface CameraCaptureProps {
-  onCapture: (uri: string) => void
-  onCancel: () => void
+  onCapture: (uri: string) => void;
+  onCancel: () => void;
 }
 
-export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
-  const [permission, requestPermission] = useCameraPermissions()
-  const [facing, setFacing] = useState<"front" | "back">("back")
-  const [isCapturing, setIsCapturing] = useState(false)
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
-  const cameraRef = useRef<CameraView | null>(null)
+export default function CameraCapture({
+  onCapture,
+  onCancel,
+}: CameraCaptureProps) {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState<"front" | "back">("back");
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const cameraRef = useRef<CameraView | null>(null);
 
   useEffect(() => {
     if (!permission?.granted) {
       requestPermission().then(({ granted }) => {
         if (!granted) {
-          Alert.alert("Camera access is required.", "", [{ text: "OK", onPress: onCancel }])
+          Alert.alert("Camera access is required.", "", [
+            { text: "OK", onPress: onCancel },
+          ]);
         }
-      })
+      });
     }
-  }, [permission])
+
+    if (
+      permission?.status === "undetermined" ||
+      permission?.status === "denied"
+    ) {
+      requestPermission();
+    }
+  }, [permission]);
 
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
-        setIsCapturing(true)
+        setIsCapturing(true);
 
         // ✅ FIXED: Cast result as CameraCapturedPicture
-        const photo = (await cameraRef.current.takePictureAsync()) as CameraCapturedPicture
+        const photo =
+          (await cameraRef.current.takePictureAsync()) as CameraCapturedPicture;
 
-        const result = await manipulateAsync(photo.uri, [{ resize: { width: 800 } }], {
-          compress: 0.7,
-          format: SaveFormat.JPEG,
-        })
+        const result = await manipulateAsync(
+          photo.uri,
+          [{ resize: { width: 800 } }],
+          {
+            compress: 0.7,
+            format: SaveFormat.JPEG,
+          },
+        );
 
-        setCapturedImage(result.uri)
+        setCapturedImage(result.uri);
       } catch (e) {
-        console.error("Failed to take picture:", e)
-        Alert.alert("Error", "Failed to take picture")
+        console.error("Failed to take picture:", e);
+        Alert.alert("Error", "Failed to take picture");
       } finally {
-        setIsCapturing(false)
+        setIsCapturing(false);
       }
     }
-  }
+  };
 
-  const retakePicture = () => setCapturedImage(null)
-  const confirmPicture = () => capturedImage && onCapture(capturedImage)
+  const retakePicture = () => setCapturedImage(null);
+  const confirmPicture = () => capturedImage && onCapture(capturedImage);
 
   if (!permission || permission.status === "undetermined") {
     return (
@@ -69,7 +84,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
         <ActivityIndicator size="large" color="#5E72E4" />
         <Text style={styles.text}>Requesting camera permission...</Text>
       </View>
-    )
+    );
   }
 
   if (!permission.granted) {
@@ -80,7 +95,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
           <Text style={styles.buttonText}>Cancel</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
 
   return (
@@ -89,11 +104,17 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
         <View style={styles.previewContainer}>
           <Image source={{ uri: capturedImage }} style={styles.preview} />
           <View style={styles.previewActions}>
-            <TouchableOpacity style={styles.actionButton} onPress={retakePicture}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={retakePicture}
+            >
               <RotateCcw size={24} color="#fff" />
               <Text style={styles.actionText}>Retake</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionButton, styles.confirmButton]} onPress={confirmPicture}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.confirmButton]}
+              onPress={confirmPicture}
+            >
               <Text style={styles.actionText}>Use Photo</Text>
             </TouchableOpacity>
           </View>
@@ -112,7 +133,11 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
           </CameraView>
 
           <View style={styles.controls}>
-            <TouchableOpacity style={styles.captureButton} onPress={takePicture} disabled={isCapturing}>
+            <TouchableOpacity
+              style={styles.captureButton}
+              onPress={takePicture}
+              disabled={isCapturing}
+            >
               {isCapturing ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
@@ -123,7 +148,7 @@ export default function CameraCapture({ onCapture, onCancel }: CameraCaptureProp
         </>
       )}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -213,4 +238,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-})
+});
